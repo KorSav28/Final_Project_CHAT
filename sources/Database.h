@@ -5,20 +5,39 @@
 #include <string>
 #include <unordered_map>
 
+#include <QVariant>
+#include <QSqlQuery>
+#include <QSqlDatabase>
+
+using std::string;
+using std::vector;
+
 class Database
 {
-	vector<User> _users;
+    QSqlDatabase db;
+    /*vector<User> _users;
 	vector<Message> _messages;
-	unordered_map<string, int> _usersMapByName;
-	int searchUserByName(string);
+    unordered_map<string, int> _usersMapByName;*/
+    int searchUserByName(const string& username) const;
+
 public:
-  vector<string> getUserList() const;
-  string getUserName(int userId) const;
+
 	Database();
-	int addUser(string username, string password);
-	int checkPassword(string username, string password);
-	void addChatMessage(string sender, string);
-	bool addPrivateMessage(string sender, string target, string message);
-	vector<string> getChatMessages();//показать все сообщения
-  vector<Message> getPrivateMessage(int userID = -1);//показать личные сообщения пользователю username
+
+    vector<string> getUserList() const;
+    string getUserName(int userId) const;
+    vector<string> getChatMessages() const;//показать все сообщения
+    vector<Message> getPrivateMessage(int userID = -1) const;//показать личные сообщения пользователю username
+
+    bool connect();
+
+    int addUser(const string& username, const string& password);
+    int checkPassword(const string& username, const string& password);
+
+    void addChatMessage(const string& sender, const string& message);
+    bool addPrivateMessage(const string& sender, const string& target, const string& message);
+
+    bool isUserBanned(const string& username) const;
+    bool setUserBanStatus(const string& username, bool banned);
+    vector<std::pair<string, bool>> getAllUsersWithBanStatus() const;
 };

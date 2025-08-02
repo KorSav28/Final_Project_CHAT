@@ -15,7 +15,7 @@ endif()
 
 set (CHAT_LIBRARIES)
 
-set (Qt6Modules Core Widgets)
+set (Qt6Modules Core Widgets Network Sql)
 foreach (QtModule IN LISTS Qt6Modules)
     list (APPEND CHAT_LIBRARIES Qt6::${QtModule})
 endforeach (QtModule)

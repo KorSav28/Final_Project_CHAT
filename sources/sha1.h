@@ -39,3 +39,6 @@ uint cycle_shift_left(uint val, int bit_count);
 uint bring_to_human_view(uint val);
 
 Hash sha1(const string &message);
+
+// новая функция
+std::string sha1_to_hex_string(const std::string& message);

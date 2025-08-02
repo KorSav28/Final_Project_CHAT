@@ -25,7 +25,7 @@ MainWindow::MainWindow(int userId, QString userName, std::shared_ptr<Database> d
         m_dbPtr = make_shared<Database>();
     auto timer = new QTimer(this);
     connect (timer, &QTimer::timeout, this, &MainWindow::updateChats);
-    timer->start(10);
+    timer->start(1000);
 }
 
 MainWindow::~MainWindow()

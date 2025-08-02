@@ -1,6 +1,9 @@
 ﻿#include "sha1.h"
 #include <string>
 #include <cstring>
+#include <sstream>
+#include <iomanip>
+
 uint cycle_shift_left(uint val, int bit_count) {
 	return (val << bit_count | val >> (32 - bit_count));
 }
@@ -129,4 +132,13 @@ Hash sha1(const string &message) {
 	// чистим за собой
 	delete[] newMessage;
 	return digest;
+}
+
+std::string sha1_to_hex_string(const std::string& message) {
+    Hash hash = sha1(message);
+    std::ostringstream result;
+    for (int i = 0; i < SHA1HASHLENGTHUINTS; ++i) {
+        result << std::hex << std::setw(8) << std::setfill('0') << hash[i];
+    }
+    return result.str();
 }

@@ -27,6 +27,18 @@ void registrationform::on_loginButton_clicked()
 
 void registrationform::on_buttonBox_accepted()
 {
+    QString login = ui->LoginEdit->text().trimmed();
+
+    if (login.isEmpty()) {
+        QMessageBox::warning(this, tr("Error"), tr("Login cannot be empty"));
+        return;
+    }
+
+    if (login.length() < 3) {
+        QMessageBox::warning(this, tr("Error"), tr("Login must be at least 3 characters long"));
+        return;
+    }
+
     if (ui->passwordEdit->text() != ui->confirmpasswordEdit->text())
     {
         QMessageBox::critical(this, tr("Error"), tr("Passwords not match"));
