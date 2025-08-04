@@ -16,7 +16,7 @@ Database::Database()
 
 bool Database::connect ()
 {
-    db = QSqlDatabase::addDatabase("QPSQL");
+    db = QSqlDatabase::addDatabase("QODBC");
     db.setHostName("localhost");
     db.setDatabaseName("chatdb");
     db.setUserName("chatuser");
@@ -34,7 +34,7 @@ bool Database::connect ()
     q.exec("CREATE TABLE IF NOT EXISTS users ("
            "id SERIAL PRIMARY KEY, "
            "username TEXT UNIQUE,"
-           "password TEXT"
+           "password TEXT, "
            "is_banned BOOLEAN DEFAULT FALSE)");
 
     q.exec("CREATE TABLE IF NOT EXISTS messages ("

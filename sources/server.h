@@ -4,11 +4,12 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QObject>
-#include <vector>
+#include <QVector>
 #include <memory>
 #include <unordered_map>
 #include <string>
 #include <QHash>
+#include <QMutex>
 #include "Database.h"
 
 class Server : public QTcpServer
@@ -37,9 +38,12 @@ private:
     std::unordered_map<QTcpSocket*, int> m_clientIds;
     QHash<QString, bool> m_bannedIps;
 
+    QMutex m_clientsMutex;
+
     void processCommand(QTcpSocket* client, const QString& msg);
     void sendMessage(QTcpSocket* client, const QString& msg);
     void broadcast(const QString& msg);
+    void sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message);
 
      void kickClient(QTcpSocket* client);
      void banClient(QTcpSocket* client);

@@ -19,9 +19,11 @@ bool Server::startServer(quint16 port)
 }
 
 void Server::stopServer() {
+    QMutexLocker locker(&m_clientsMutex);
     close();
     for (QTcpSocket* sock : m_clients) {
         sock->disconnectFromHost();
+         sock->deleteLater();
     }
     m_clients.clear();
     m_clientIds.clear();
@@ -44,8 +46,10 @@ void Server::onNewConnection()
             continue;
         }
 
-        m_clients.append(clientSocket);
-
+        {
+         QMutexLocker locker(&m_clientsMutex);
+         m_clients.append(clientSocket);
+        }
         connect (clientSocket, &QTcpSocket::readyRead, this, &Server::onReadyRead);
         connect (clientSocket, &QTcpSocket::disconnected, this, &Server::onClientDisconnect);
 
@@ -71,6 +75,7 @@ void Server::onClientDisconnect()
     QTcpSocket *clientSocket = qobject_cast<QTcpSocket*> (sender());
     if (!clientSocket) return;
 
+    QMutexLocker locker(&m_clientsMutex);
     m_clients.removeAll(clientSocket);
     m_clientIds.erase(clientSocket);
     clientSocket->deleteLater();
@@ -84,22 +89,65 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
 
     QString cmd = parts[0].toUpper();
 
-    if (cmd == "KICK" && parts.size() > 1) {
-        QString userToKick = parts[1];
-        for (QTcpSocket* sock : m_clients) {
-            if (m_clientIds.count(sock) && m_database->getUserName(m_clientIds[sock]).c_str() == userToKick) {
-                kickClient(sock);
-                break;
-            }
+    if (cmd == "REGISTER" && parts.size() >= 3) {
+        QString username = parts[1];
+        QString password = parts[2];
+        int id = m_database->addUser(username.toStdString(), password.toStdString());
+        if (id > 0) {
+            sendMessage(client, "REGISTERED");
+        } else {
+            sendMessage(client, "REGISTER_FAILED");
         }
-    } else if (cmd == "BAN" && parts.size() > 1) {
-        QString userToBan = parts[1];
-        for (QTcpSocket* sock : m_clients) {
-            if (m_clientIds.count(sock) && QString::fromStdString(m_database->getUserName(m_clientIds[sock])) == userToBan) {
-                banClient(sock);
-                break;
+
+    } else if (cmd == "LOGIN" && parts.size() >= 3) {
+        QString username = parts[1];
+        QString password = parts[2];
+        int id = m_database->checkPassword(username.toStdString(), password.toStdString());
+
+        if (id > 0) {
+            if (m_database->isUserBanned(username.toStdString())) {
+                sendMessage(client, "LOGIN_FAILED_BANNED");
+                client->disconnectFromHost();
+                return;
             }
+
+            {
+                QMutexLocker locker(&m_clientsMutex);
+                m_clientIds[client] = id;
+            }
+            sendMessage(client, "LOGIN_SUCCESS");
+        } else {
+            sendMessage(client, "LOGIN_FAILED");
         }
+
+    } else if (cmd == "MSG" && parts.size() >= 2) {
+        if (m_clientIds.find(client) == m_clientIds.end()) {
+            sendMessage(client, "ERROR Not logged in");
+            return;
+        }
+        QString message = msg.section(' ', 1);
+        QString sender = QString::fromStdString(m_database->getUserName(m_clientIds[client]));
+        m_database->addChatMessage(sender.toStdString(), message.toStdString());
+        broadcast("<" + sender + ">: " + message);
+
+    } else if (cmd == "PMSG" && parts.size() >= 3) {
+        if (m_clientIds.find(client) == m_clientIds.end()) {
+            sendMessage(client, "ERROR Not logged in");
+            return;
+        }
+        QString target = parts[1];
+        QString message = msg.section(' ', 2);
+        QString sender = QString::fromStdString(m_database->getUserName(m_clientIds[client]));
+
+        if (m_database->addPrivateMessage(sender.toStdString(), target.toStdString(), message.toStdString())) {
+            sendMessage(client, "PMSG_SENT");
+            sendPrivateMessage(target, sender, message);
+        } else {
+            sendMessage(client, "PMSG_FAILED");
+        }
+
+    } else {
+        sendMessage(client, "UNKNOWN_COMMAND");
     }
     // Добавить обработку других команд
 }
@@ -114,17 +162,32 @@ void Server::sendMessage(QTcpSocket* client, const QString& msg)
 
 void Server::broadcast(const QString& msg)
 {
+    QMutexLocker locker(&m_clientsMutex);
     for (QTcpSocket* client : m_clients) {
         sendMessage(client, msg);
+    }
+}
+
+void Server::sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message)
+{
+    QMutexLocker locker(&m_clientsMutex);
+    for (const auto& pair : m_clientIds) {
+        QTcpSocket* sock = pair.first;
+        int id = pair.second;
+        QString uname = QString::fromStdString(m_database->getUserName(id));
+        if (uname == targetUsername) {
+            sendMessage(sock, "<Private from " + sender + ">: " + message);
+            break;
+        }
     }
 }
 
 void Server::kickClient(QTcpSocket* client)
 {
     if (!client) return;
-    qDebug() << "Kicking client:" << client->peerAddress().toString();
-    sendMessage(client, "You have been kicked by server.");
+    sendMessage(client, "You have been kicked by admin.");
     client->disconnectFromHost();
+    QMutexLocker locker(&m_clientsMutex);
     m_clients.removeAll(client);
     m_clientIds.erase(client);
 }
@@ -133,10 +196,10 @@ void Server::banClient(QTcpSocket* client)
 {
     if (!client) return;
     QString ip = client->peerAddress().toString();
-    qDebug() << "Banning client IP:" << ip;
     m_bannedIps[ip] = true;
-    sendMessage(client, "You have been banned by server.");
+    sendMessage(client, "You have been banned.");
     client->disconnectFromHost();
+    QMutexLocker locker(&m_clientsMutex);
     m_clients.removeAll(client);
     m_clientIds.erase(client);
 }
@@ -146,9 +209,9 @@ bool Server::banUserByName(const std::string& username)
     bool success = m_database->setUserBanStatus(username, true);
     if (!success) return false;
 
+    QMutexLocker locker(&m_clientsMutex);
     for (QTcpSocket* sock : m_clients) {
-        if (m_clientIds.count(sock) &&
-            m_database->getUserName(m_clientIds[sock]) == username) {
+        if (m_clientIds.count(sock) && m_database->getUserName(m_clientIds[sock]) == username) {
             banClient(sock);
             break;
         }
@@ -163,6 +226,7 @@ bool Server::unbanUserByName(const std::string& username)
 
 bool Server::kickUserByName(const std::string& username)
 {
+    QMutexLocker locker(&m_clientsMutex);
     for (QTcpSocket* sock : m_clients) {
         if (m_clientIds.count(sock) &&
             m_database->getUserName(m_clientIds[sock]) == username) {
@@ -172,8 +236,3 @@ bool Server::kickUserByName(const std::string& username)
     }
     return false;
 }
-
-
-
-
-

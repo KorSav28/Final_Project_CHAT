@@ -2,7 +2,9 @@
 #define ADMINPANEL_H
 
 #include <QWidget>
+#include <memory>
 #include "Database.h"
+#include "server.h"
 
 namespace Ui {
 class adminpanel;
@@ -13,7 +15,7 @@ class adminpanel : public QWidget
     Q_OBJECT
 
 public:
-    explicit adminpanel(std::shared_ptr<Database> dbPtr, QWidget *parent = nullptr);
+    explicit adminpanel(std::shared_ptr<Database> dbPtr, Server* serverPtr, QWidget *parent = nullptr);
     ~adminpanel();
 
 private slots:
@@ -31,6 +33,7 @@ private:
 
     Ui::adminpanel *ui;
     std::shared_ptr<Database> m_dbPtr;
+    Server* m_serverPtr;
 };
 
 #endif // ADMINPANEL_H

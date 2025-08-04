@@ -5,6 +5,7 @@
 registrationform::registrationform(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::registrationform)
+    , m_client(nullptr)
 {
     ui->setupUi(this);
 }
@@ -14,9 +15,10 @@ registrationform::~registrationform()
     delete ui;
 }
 
-void registrationform::setDatabase(std::shared_ptr<Database> dbPtr)
+void registrationform::setClient (client* c)
 {
-    m_dbPtr = dbPtr;
+    m_client = c;
+    connect(m_client, &client::registerResult, this, &registrationform::onRegisterResult);
 }
 
 void registrationform::on_loginButton_clicked()
@@ -27,7 +29,11 @@ void registrationform::on_loginButton_clicked()
 
 void registrationform::on_buttonBox_accepted()
 {
+    if (!m_client) return;
+
     QString login = ui->LoginEdit->text().trimmed();
+    QString password = ui->passwordEdit->text().trimmed();
+    QString confirmPassword = ui->confirmpasswordEdit->text().trimmed();
 
     if (login.isEmpty()) {
         QMessageBox::warning(this, tr("Error"), tr("Login cannot be empty"));
@@ -39,24 +45,12 @@ void registrationform::on_buttonBox_accepted()
         return;
     }
 
-    if (ui->passwordEdit->text() != ui->confirmpasswordEdit->text())
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Passwords not match"));
+    if (password != confirmPassword) {
+        QMessageBox::critical(this, tr("Error"), tr("Passwords do not match"));
         return;
     }
-  auto userId = m_dbPtr->addUser(ui->LoginEdit->text().toStdString(),
-                     ui->passwordEdit->text().toStdString());
-    switch (userId)
-  {
-        case -1:
-        QMessageBox::critical(this, tr("Error"), tr("Incorrect login"));
-            return;
-        case -2:
-            QMessageBox::critical(this, tr("Error"), tr("Login already exists"));
-            return;
-        default:
-            emit accepted(userId, ui->LoginEdit->text());
-  }
+
+   m_client->registerUser(login, password);
 }
 
 
@@ -65,3 +59,11 @@ void registrationform::on_buttonBox_rejected()
   emit rejected();
 }
 
+void registrationform::onRegisterResult(bool success, int userId, const QString& userName)
+{
+    if (success) {
+        emit accepted(userId, userName);
+    } else {
+        QMessageBox::critical(this, tr("Registration Failed"), tr("Username already exists or invalid data."));
+    }
+}

@@ -1,19 +1,15 @@
 #include "startscreen.h"
 #include "ui_startscreen.h"
 
-StartScreen::StartScreen(std::shared_ptr<Database> dbPtr, QWidget *parent) :
+StartScreen::StartScreen(client* clientPtr, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::StartScreen)
+    ui(new Ui::StartScreen),
+    m_client(clientPtr)
 {
     ui->setupUi(this);
 
-    if (dbPtr)
-        m_dbPtr= dbPtr;
-    else
-        m_dbPtr = make_shared<Database>();
-
-    ui->loginWidget->setDatabase (m_dbPtr);
-    ui->registerWidget->setDatabase (m_dbPtr);
+    ui->loginWidget->setClient(m_client);
+    ui->registerWidget->setClient(m_client);
 
     connect (ui->loginWidget, &LoginForm::registrationRequested, this, &StartScreen::setRegistrationForm);
     connect (ui->loginWidget, &LoginForm::accepted, this, &StartScreen::onLoggedIn);
@@ -21,6 +17,8 @@ StartScreen::StartScreen(std::shared_ptr<Database> dbPtr, QWidget *parent) :
     connect (ui->registerWidget, &registrationform::loginRequested, this, &StartScreen::setLoginForm);
     connect (ui->registerWidget, &registrationform::accepted, this, &StartScreen::onLoggedIn);
     connect (ui->registerWidget, &registrationform::rejected, this, &StartScreen::onRejectRequested);
+
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 StartScreen::~StartScreen()
@@ -58,9 +56,4 @@ void StartScreen::onLoggedIn(uint userId, QString userName)
 void StartScreen::onRejectRequested()
 {
     reject();
-}
-
-std::shared_ptr<Database> StartScreen::getDatabase() const
-{
-    return m_dbPtr;
 }

@@ -5,6 +5,7 @@
 LoginForm::LoginForm(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::LoginForm)
+    , m_client(nullptr)
 {
     ui->setupUi(this);
 }
@@ -14,30 +15,25 @@ LoginForm::~LoginForm()
     delete ui;
 }
 
-void LoginForm::setDatabase(std::shared_ptr<Database> dbPtr)
+void LoginForm::setClient(client* c)
 {
-    m_dbPtr = dbPtr;
+    m_client = c;
+    connect(m_client, &client::loginResult, this, &LoginForm::onLoginResult);
 }
 
 void LoginForm::on_buttonBox_accepted()
 {
-     QString login = ui->loginEdit->text();//??????????????????????????????
-    auto userId = m_dbPtr->checkPassword(ui->loginEdit->text().toStdString(),
-                                             ui->passwordEdit->text().toStdString());
-    if (userId == -1)
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Password is wrong"));
+    if (!m_client) return;
+
+    QString username = ui->loginEdit->text().trimmed();
+    QString password = ui->passwordEdit->text().trimmed();
+
+    if (username.isEmpty() || password.isEmpty()) {
+        QMessageBox::warning(this, tr("Error"), tr("Username and password cannot be empty"));
         return;
     }
 
-    // Проверка на бан
-    if (m_dbPtr->isUserBanned(login.toStdString()))//??????????????????????
-    {
-        QMessageBox::warning(this, tr("Ban"), tr("User blocked by administrator"));
-        return;
-    }
-
- emit accepted(userId, ui->loginEdit->text());
+   m_client->login(username, password);
 }
 
 
@@ -52,3 +48,11 @@ void LoginForm::on_registrationpushButton_clicked()
  emit registrationRequested();
 }
 
+void LoginForm::onLoginResult(bool success, int userId, const QString& userName)
+{
+    if (success) {
+        emit accepted(userId, userName);
+    } else {
+        QMessageBox::critical(this, tr("Login Failed"), tr("Invalid credentials or user is banned."));
+    }
+}

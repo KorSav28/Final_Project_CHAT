@@ -2,8 +2,7 @@
 #define REGISTRATIONFORM_H
 
 #include <QWidget>
-#include <memory>
-#include "Database.h"
+#include "client.h"
 
 namespace Ui {
 class registrationform;
@@ -16,7 +15,7 @@ class registrationform : public QWidget
 public:
     explicit registrationform(QWidget *parent = nullptr);
     ~registrationform();
-    void setDatabase(std::shared_ptr<Database> dbPtr);
+    void setClient(client* c);
 
 signals:
     void loginRequested();
@@ -25,14 +24,14 @@ signals:
 
 private slots:
     void on_loginButton_clicked();
-
     void on_buttonBox_accepted();
-
     void on_buttonBox_rejected();
+
+    void onRegisterResult(bool success, int userId, const QString& userName);
 
 private:
     Ui::registrationform *ui;
-    std::shared_ptr<Database> m_dbPtr;
+    client* m_client;
 };
 
 #endif // REGISTRATIONFORM_H

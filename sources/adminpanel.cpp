@@ -2,10 +2,11 @@
 #include "ui_adminpanel.h"
 #include <QMessageBox>
 
-adminpanel::adminpanel(std::shared_ptr<Database> dbPtr, QWidget *parent)
+adminpanel::adminpanel(std::shared_ptr<Database> dbPtr, Server* serverPtr,QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::adminpanel)
     , m_dbPtr(dbPtr)
+    , m_serverPtr(serverPtr)
 {
     ui->setupUi(this);
     ui->messageTypeComboBox->addItems({"All", "Common", "Private"});
@@ -28,10 +29,14 @@ void adminpanel::updateUserList()
     for (const auto &pair : users)
     {
         QString userText = QString::fromStdString(pair.first);
-        if (pair.second)
-            userText += " [BANNED]";
+        QListWidgetItem* item = new QListWidgetItem(userText);
 
-        ui->userListWidget->addItem(userText);
+        if (pair.second){
+            userText += " [BANNED]";
+            item->setText(userText);
+            item->setForeground(Qt::red);
+        }
+        ui->userListWidget->addItem(item);
         ui->userFilterComboBox->addItem(QString::fromStdString(pair.first));
     }
 }
@@ -81,10 +86,12 @@ void adminpanel::on_banUserButton_clicked()
     auto item = ui->userListWidget->currentItem();
     if (!item) return;
 
-    QString text = item->text();
-    QString username = text.split(" ").first();
+    QString username = item->text().split(" ").first();
 
     if (m_dbPtr->setUserBanStatus(username.toStdString(), true)) {
+        if (m_serverPtr)
+            m_serverPtr->banUserByName(username.toStdString());
+
         QMessageBox::information(this, "Ban", username + " has been banned.");
         updateUserList();
     } else {
@@ -98,8 +105,7 @@ void adminpanel::on_unbanUserButton_clicked()
     auto item = ui->userListWidget->currentItem();
     if (!item) return;
 
-    QString text = item->text();
-    QString username = text.split(" ").first();
+   QString username = item->text().split(" ").first();
 
     if (m_dbPtr->setUserBanStatus(username.toStdString(), false)) {
         QMessageBox::information(this, "Unban", username + " has been unbanned.");
@@ -112,13 +118,33 @@ void adminpanel::on_unbanUserButton_clicked()
 
 void adminpanel::on_disconnectUserButton_3_clicked()
 {
-    QMessageBox::information(this, "Not Implemented", "Disconnect not supported in this version.");
+    auto item = ui->userListWidget->currentItem();
+    if (!item || !m_serverPtr) return;
+
+    QString username = item->text().split(" ").first();
+
+    if (m_serverPtr->kickUserByName(username.toStdString())) {
+        QMessageBox::information(this, "Disconnect", username + " has been disconnected.");
+        updateUserList();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to disconnect user.");
+    }
 }
 
 
 void adminpanel::on_reconnectUserButton_clicked()
 {
-    QMessageBox::information(this, "Not Implemented", "Reconnect not supported in this version.");
+    auto item = ui->userListWidget->currentItem();
+    if (!item || !m_serverPtr) return;
+
+    QString username = item->text().split(" ").first();
+
+    if (m_dbPtr->setUserBanStatus(username.toStdString(), false)) {
+        QMessageBox::information(this, "Reconnect", username + " is now unbanned and can reconnect.");
+        updateUserList();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to unban user.");
+    }
 }
 
 
