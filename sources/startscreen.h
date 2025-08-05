@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <memory>
 #include "client.h"
+#include "adminpanel.h"
 
 namespace Ui {
 class StartScreen;
@@ -25,8 +26,11 @@ public:
     QString userName() const;
 
 public slots:
-    void onLoggedIn(uint userId, QString userName);
+    void onLoggedIn(uint userId, QString userName, bool isAdmin);
     void onRejectRequested();
+
+signals:
+    void accepted(uint userId, QString userName);
 
 private:
     Ui::StartScreen *ui;

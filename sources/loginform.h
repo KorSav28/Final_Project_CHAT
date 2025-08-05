@@ -19,7 +19,7 @@ public:
 
 signals:
     void registrationRequested();
-    void accepted (int userId, QString userName);
+    void accepted (int userId, QString userName, bool isAdmin);
     void rejected ();
 
 
@@ -30,7 +30,7 @@ private slots:
 
     void on_registrationpushButton_clicked();
 
-    void onLoginResult(bool success, int userId, const QString& userName);
+    void onLoginResult(bool success, int userId, const QString& userName, bool isAdmin);
 
 private:
     Ui::LoginForm *ui;

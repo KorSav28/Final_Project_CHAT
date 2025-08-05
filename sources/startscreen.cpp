@@ -14,6 +14,7 @@ StartScreen::StartScreen(client* clientPtr, QWidget *parent) :
     connect (ui->loginWidget, &LoginForm::registrationRequested, this, &StartScreen::setRegistrationForm);
     connect (ui->loginWidget, &LoginForm::accepted, this, &StartScreen::onLoggedIn);
     connect (ui->loginWidget, &LoginForm::rejected, this, &StartScreen::onRejectRequested);
+
     connect (ui->registerWidget, &registrationform::loginRequested, this, &StartScreen::setLoginForm);
     connect (ui->registerWidget, &registrationform::accepted, this, &StartScreen::onLoggedIn);
     connect (ui->registerWidget, &registrationform::rejected, this, &StartScreen::onRejectRequested);
@@ -46,10 +47,19 @@ QString StartScreen::userName() const
     return m_userName;
 }
 
-void StartScreen::onLoggedIn(uint userId, QString userName)
+void StartScreen::onLoggedIn(uint userId, QString userName, bool isAdmin)
 {
+     qDebug() << "StartScreen::onLoggedIn called with user:" << userName;
+    /*if (isAdmin) {
+        adminpanel* admin = new adminpanel(std::shared_ptr<Database>(m_dbPtr), m_serverPtr);
+        admin->setAttribute(Qt::WA_DeleteOnClose);  // автоматическое удаление при закрытии
+        admin->show();
+        this->close(); // Закрываем окно логина
+        return;
+    }*/
     m_userId = userId;
     m_userName = userName;
+    emit accepted(userId, userName);
     accept();
 }
 

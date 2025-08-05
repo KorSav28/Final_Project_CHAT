@@ -15,9 +15,6 @@ using std::vector;
 class Database
 {
     QSqlDatabase db;
-    /*vector<User> _users;
-	vector<Message> _messages;
-    unordered_map<string, int> _usersMapByName;*/
     int searchUserByName(const string& username) const;
 
 public:
@@ -31,6 +28,10 @@ public:
 
     bool connect();
 
+    void printAllUsers() const;
+    void debugPrintAllUsers() const;
+    QStringList getAllUsernames();
+
     int addUser(const string& username, const string& password);
     int checkPassword(const string& username, const string& password);
 
@@ -40,4 +41,12 @@ public:
     bool isUserBanned(const string& username) const;
     bool setUserBanStatus(const string& username, bool banned);
     vector<std::pair<string, bool>> getAllUsersWithBanStatus() const;
+
+    //для получения недоставленных сообщений
+    std::vector<Message> getUndeliveredPrivateMessages(int userId) const;
+    bool markMessagesAsDelivered(int userId);
+
+    vector<Message> getRecentMessages(int limit = 50) const;
+
+    bool isUserAdmin(const std::string& username) const; // для админа
 };

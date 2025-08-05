@@ -8,15 +8,21 @@
 
 //'Ανθρωπος
 
-
 Database::Database()
 {
     connect();
+    if (connect()) {
+        printAllUsers();
+        debugPrintAllUsers();
+    } else {
+        qDebug() << "Failed to connect to database";
+    }
 }
 
 bool Database::connect ()
 {
-    db = QSqlDatabase::addDatabase("QODBC");
+    qDebug() << "Current working directory:" << QDir::currentPath();
+    db = QSqlDatabase::addDatabase("QSQLITE");
     db.setHostName("localhost");
     db.setDatabaseName("chatdb");
     db.setUserName("chatuser");
@@ -29,81 +35,118 @@ bool Database::connect ()
 
     QSqlQuery q;
 
-    q.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE");
-
     q.exec("CREATE TABLE IF NOT EXISTS users ("
-           "id SERIAL PRIMARY KEY, "
+           "id INTEGER PRIMARY KEY AUTOINCREMENT, "
            "username TEXT UNIQUE,"
            "password TEXT, "
-           "is_banned BOOLEAN DEFAULT FALSE)");
+           "is_banned BOOLEAN DEFAULT FALSE, "
+           "isadmin INTEGER DEFAULT 0)");
 
     q.exec("CREATE TABLE IF NOT EXISTS messages ("
-           "id SERIAL PRIMARY KEY, "
+           "id INTEGER PRIMARY KEY AUTOINCREMENT, "
            "sender TEXT, "
            "recipient INTEGER, "
            "text TEXT, "
-           "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+           "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+           "delivered BOOLEAN DEFAULT FALSE)");
+
+    QSqlQuery usersQuery("SELECT username FROM users");
+    qDebug() << "Users in database:";
+    while (usersQuery.next()) {
+        qDebug() << usersQuery.value(0).toString();
+    }
+
+    QSqlQuery checkUser;
+    checkUser.prepare("SELECT COUNT(*) FROM users WHERE username = :u");
+    checkUser.bindValue(":u", "admin");
+    if (!checkUser.exec()) {
+        qDebug() << "Failed to check user existence:" << checkUser.lastError().text();
+        return false;
+    }
+    checkUser.next();
+
+    if (checkUser.value(0).toInt() == 0) {
+        QSqlQuery insertUser;
+        insertUser.prepare("INSERT INTO users (username, password, isadmin) VALUES (:u, :p, 1)");
+        insertUser.bindValue(":u", "admin");
+        insertUser.bindValue(":p", QString::fromStdString(sha1_to_hex_string("admin123")));
+        if (!insertUser.exec()) {
+            qDebug() << "Failed to insert test user:" << insertUser.lastError().text();
+            return false;
+        } else {
+            qDebug() << "Inserted test user 'tolik'";
+        }
+    }
 
     return true;
 }
 
 int Database::addUser(const string& username, const string& password)
 {
-
-
-   /* if (!correctName(username)) return -1;
-    auto uit = _usersMapByName.find(username);
-    if (uit != _usersMapByName.end()) return -2;
-    User newUser = User(username, sha1(password));
-    _users.push_back(newUser);
-    _usersMapByName.insert({ username, newUser.getUserID() });
-    return newUser.getUserID();*/
     QString uname = QString::fromStdString(username);
    //УТОЧНИТЬ ПО ФУНКЦИИ SHA1
    QString passhash = QString::fromStdString(sha1_to_hex_string(password));
+   qDebug() << "[addUser] Trying to add user:" << uname << "with hash:" << passhash;
 
     QSqlQuery q;
-   q.prepare("INSERT INTO users (username, password) VALUES (:u, :p) RETURNING id");
-   q.bindValue(":u", uname);
-   q.bindValue(":p", passhash);
+    q.prepare("INSERT INTO users (username, password) VALUES (:u, :p)");
+    q.bindValue(":u", uname);
+    q.bindValue(":p", passhash);
 
-   if (q.exec() && q.next()) {
-       return q.value(0).toInt();
-   }
-   return -1;
+    if (q.exec()) {
+        qDebug() << "[addUser] Insert successful. ID:" << q.lastInsertId();
+        return q.lastInsertId().toInt();
+    } else {
+        qDebug() << "[addUser] Failed to insert user:" << q.lastError().text();
+    }
+    return -1;
 }
 
 int Database::checkPassword(const string& username, const string& password)
 {
-   /* int result = -1;
-    Hash passHash = sha1(password);
-    for (const auto &u : _users)
-    {
-        result = u.checklogin(username, passHash);
-        if (result != -1) return result;
-    }
-    return result; */
     QString uname = QString::fromStdString(username);
-    //УТОЧНИТЬ ПО ФУНКЦИИ SHA1
     QString passhash = QString::fromStdString(sha1_to_hex_string(password));
+    qDebug() << "[checkPassword] Checking password for user:" << uname << ", hash:" << passhash;
 
     QSqlQuery q;
+
+    // Дополнительная проверка: есть ли пользователь с таким именем вообще
+    QSqlQuery qUserExists;
+    qUserExists.prepare("SELECT COUNT(*) FROM users WHERE username = :u");
+    qUserExists.bindValue(":u", uname);
+    if (qUserExists.exec() && qUserExists.next()) {
+        int count = qUserExists.value(0).toInt();
+        qDebug() << "[checkPassword] User exists count for" << uname << ":" << count;
+        if (count == 0) {
+            qDebug() << "[checkPassword] User not found in database.";
+            return -1;
+        }
+    } else {
+        qDebug() << "[checkPassword] SQL error on user existence check:" << qUserExists.lastError().text();
+        return -1;
+    }
+
+    // Теперь проверяем пароль
     q.prepare("SELECT id FROM users WHERE username = :u AND password = :p");
     q.bindValue(":u", uname);
     q.bindValue(":p", passhash);
 
-    if (q.exec() && q.next()) {
-        return q.value(0).toInt();
+    if (q.exec()) {
+        if (q.next()) {
+            int id = q.value(0).toInt();
+            qDebug() << "[checkPassword] Login successful. User ID:" << id;
+            return id;
+        } else {
+            qDebug() << "[checkPassword] Password does not match for user:" << uname;
+        }
+    } else {
+        qDebug() << "[checkPassword] SQL error:" << q.lastError().text();
     }
     return -1;
 }
 
 int Database::searchUserByName(const string& username) const
 {
-    /*auto uit = _usersMapByName.find(username);
-	if (uit != _usersMapByName.end()) return uit->second;
-  return -1;*/
-
     QSqlQuery q;
     q.prepare("SELECT id FROM users WHERE username = :u");
     q.bindValue(":u", QString::fromStdString(username));
@@ -116,7 +159,6 @@ int Database::searchUserByName(const string& username) const
 
 void Database::addChatMessage(const string& sender, const string& message)
 {
-    /*_messages.push_back(Message(sender, text));*/
     QSqlQuery q;
     q.prepare("INSERT INTO messages (sender, recipient, text) VALUES (:s, NULL, :m)");
     q.bindValue(":s", QString::fromStdString(sender));
@@ -126,14 +168,6 @@ void Database::addChatMessage(const string& sender, const string& message)
 
 bool Database::addPrivateMessage(const string& sender, const string& target, const string& message)
 {
-    /*int targetUser = searchUserByName(target);
-    if (targetUser < 0)
-    {
-        return false;
-    }
-    _messages.push_back(Message(sender, targetUser, message));
-    return true;*/
-
     int recipientId = searchUserByName(target);
     if (recipientId == -1) return false;
 
@@ -147,12 +181,6 @@ bool Database::addPrivateMessage(const string& sender, const string& target, con
 
 vector<string> Database::getUserList() const
 {
- /* vector<string> userList;
-  for(auto user : _usersMapByName)
-  {
-    userList.push_back(user.first);
-  }
-  return userList;*/
     vector<string> users;
  QSqlQuery q("SELECT username FROM users");
     while (q.next()) {
@@ -163,33 +191,20 @@ vector<string> Database::getUserList() const
 
 string Database::getUserName(int userId) const
 {
-  /*for (auto it = _usersMapByName.begin(); it != _usersMapByName.end(); ++it) {
-    if (it->second == userId)
-      return it->first;
-  }
-  return "";*/
+    qDebug() << "DB: looking up username for id:" << userId;
     QSqlQuery q;
     q.prepare("SELECT username FROM users WHERE id = :id");
     q.bindValue(":id", userId);
     if (q.exec()&&q.next()){
         return q.value(0).toString().toStdString();
     }
+    qDebug() << "DB: username NOT found for id:" << userId;
     return "";
 }
 
 
 vector<string> Database::getChatMessages() const
 {
-    /*vector<string> strings;
-	for (auto &m: _messages)
-	{
-		if (m.getDest() == -1)
-		{
-			strings.push_back("<" + m.getSender() + ">: " + m.getText());
-		}
-	}
-    return strings;*/
-
     vector<string> result;
     QSqlQuery q ("SELECT sender, text FROM messages WHERE recipient IS NULL ORDER BY timestamp");
     while (q.next()) {
@@ -201,16 +216,6 @@ vector<string> Database::getChatMessages() const
 
 vector<Message> Database::getPrivateMessage(int userID) const
 {
-    /*vector<Message> strings;
-	//int userID = searchUserByName(username);
-	for (auto &m : _messages)
-  {
-    if(userID == -1 && m.getDest() != -1)
-      strings.push_back(m);
-    else if(userID != -1 && m.getDest() == userID)
-      strings.push_back(m);
-	}
-    return strings;*/
     vector<Message> messages;
     QSqlQuery q;
     if (userID == -1) {
@@ -255,4 +260,80 @@ vector<std::pair<string, bool>> Database::getAllUsersWithBanStatus() const {
         result.emplace_back(name, banned);
     }
     return result;
+}
+
+void Database::printAllUsers() const
+{
+    QSqlQuery query("SELECT id, username, password FROM users");
+    while (query.next()) {
+        int id = query.value(0).toInt();
+        QString username = query.value(1).toString();
+        QString password = query.value(2).toString();
+        qDebug() << "User id:" << id << ", username:" << username << ", password hash:" << password;
+    }
+}
+
+void Database::debugPrintAllUsers() const
+{
+    qDebug() << "=== DEBUG: All users and hashes ===";
+    QSqlQuery q("SELECT id, username, password FROM users");
+    while (q.next()) {
+        qDebug() << "ID:" << q.value(0).toInt()
+        << "Username:" << q.value(1).toString()
+        << "Hash:" << q.value(2).toString();
+    }
+    qDebug() << "=== END DEBUG ===";
+}
+
+std::vector<Message> Database::getUndeliveredPrivateMessages(int userId) const {
+    std::vector<Message> messages;
+    QSqlQuery q;
+    q.prepare("SELECT sender, recipient, text FROM messages WHERE recipient = :id AND delivered = FALSE ORDER BY timestamp");
+    q.bindValue(":id", userId);
+
+    if (q.exec()) {
+        while (q.next()) {
+            std::string sender = q.value(0).toString().toStdString();
+            int recipient = q.value(1).toInt();
+            std::string text = q.value(2).toString().toStdString();
+            messages.emplace_back(sender, recipient, text);
+        }
+    }
+    return messages;
+}
+
+bool Database::markMessagesAsDelivered(int userId) {
+    QSqlQuery q;
+    q.prepare("UPDATE messages SET delivered = 1 WHERE recipient = :id AND delivered = 0");
+    q.bindValue(":id", userId);
+    return q.exec();
+}
+
+vector<Message> Database::getRecentMessages(int limit) const {
+    vector<Message> messages;
+    QSqlQuery q;
+    q.prepare("SELECT sender, recipient, text, timestamp FROM messages ORDER BY timestamp DESC LIMIT :limit");
+    q.bindValue(":limit", limit);
+
+    if (q.exec()) {
+        while (q.next()) {
+            string sender = q.value(0).toString().toStdString();
+            int recipient = q.value(1).isNull() ? -1 : q.value(1).toInt();
+            string text = q.value(2).toString().toStdString();
+            QDateTime timestamp = q.value(3).toDateTime();
+            messages.emplace_back(sender, recipient, text, timestamp);
+        }
+    }
+    std::reverse(messages.begin(), messages.end()); // чтобы сначала были старые
+    return messages;
+}
+
+bool Database::isUserAdmin(const std::string& username) const {
+    QSqlQuery q;
+    q.prepare("SELECT isadmin FROM users WHERE username = :u");
+    q.bindValue(":u", QString::fromStdString(username));
+    if (q.exec() && q.next()) {
+        return q.value(0).toInt() == 1;
+    }
+    return false;
 }

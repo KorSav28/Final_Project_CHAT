@@ -94,9 +94,9 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
         QString password = parts[2];
         int id = m_database->addUser(username.toStdString(), password.toStdString());
         if (id > 0) {
-            sendMessage(client, "REGISTERED");
+            sendMessage(client, "REGISTER_OK " + QString::number(id) + " " + username);
         } else {
-            sendMessage(client, "REGISTER_FAILED");
+            sendMessage(client, "REGISTER_FAIL");
         }
 
     } else if (cmd == "LOGIN" && parts.size() >= 3) {
@@ -104,7 +104,7 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
         QString password = parts[2];
         int id = m_database->checkPassword(username.toStdString(), password.toStdString());
 
-        if (id > 0) {
+        if (id >= 0) {
             if (m_database->isUserBanned(username.toStdString())) {
                 sendMessage(client, "LOGIN_FAILED_BANNED");
                 client->disconnectFromHost();
@@ -115,9 +115,29 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
                 QMutexLocker locker(&m_clientsMutex);
                 m_clientIds[client] = id;
             }
-            sendMessage(client, "LOGIN_SUCCESS");
+            bool isAdmin = m_database->isUserAdmin(username.toStdString());
+            QString adminFlag = isAdmin ? "1" : "0";
+
+            sendMessage(client, "LOGIN_OK " + QString::number(id) + " " + username + " " + adminFlag);
+
+            // общий чат
+            std::vector<std::string> publicMessages = m_database->getChatMessages();
+            for (const std::string& msg : publicMessages) {
+                sendMessage(client, QString::fromStdString(msg));
+            }
+
+            // приватные сообщения
+            std::vector<Message> privateMessages = m_database->getUndeliveredPrivateMessages(id);
+            for (const Message& msg : privateMessages) {
+                QString sender = QString::fromStdString(msg.getSender());
+                QString receiver = username;
+                QString text = QString::fromStdString(msg.getText());
+                sendMessage(client, "PMSG " + sender + " " + receiver + " " + text);
+            }
+
+            m_database->markMessagesAsDelivered(id);
         } else {
-            sendMessage(client, "LOGIN_FAILED");
+            sendMessage(client, "LOGIN_FAIL");
         }
 
     } else if (cmd == "MSG" && parts.size() >= 2) {
@@ -140,21 +160,63 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
         QString sender = QString::fromStdString(m_database->getUserName(m_clientIds[client]));
 
         if (m_database->addPrivateMessage(sender.toStdString(), target.toStdString(), message.toStdString())) {
-            sendMessage(client, "PMSG_SENT");
+            QString fullMsg = "PMSG " + sender + " " + target + " " + message;
+
+            sendMessage(client, fullMsg); // ← Отправитель получит его и отобразит в приватном чате
             sendPrivateMessage(target, sender, message);
         } else {
             sendMessage(client, "PMSG_FAILED");
         }
+    } else if (cmd == "USERLIST") {
+            if (m_clientIds.find(client) == m_clientIds.end()) {
+                sendMessage(client, "ERROR Not logged in");
+                return;
+            }
+            QStringList users = m_database->getAllUsernames();
+            QString response = "USERLIST " + users.join(" ");
+            sendMessage(client, response);
+        }
+    else if (cmd == "HISTORY") {
+        auto messages = m_database->getRecentMessages(50); // Получаем последние 50 сообщений
+        for (const Message& msg : messages) {
+            if (msg.getDest() == -1) { // Сообщение в общий чат
+                QString text = QString("HISTORY_MSG %1 %2 %3\n")
+                                   .arg(QString::fromStdString(msg.getSender()))
+                                   .arg(msg.getTimestamp().toString(Qt::ISODate))
+                                   .arg(QString::fromStdString(msg.getText()));
 
-    } else {
+                client->write(text.toUtf8());
+            } else {
+                QString recipientName = QString::fromStdString(m_database->getUserName(msg.getDest()));
+                QString text = QString("HISTORY_PMSG %1 %2 %3 %4\n")
+                                   .arg(QString::fromStdString(msg.getSender()))
+                                   .arg(recipientName)
+                                   .arg(msg.getTimestamp().toString(Qt::ISODate))
+                                   .arg(QString::fromStdString(msg.getText()));
+
+                client->write(text.toUtf8());
+            }
+        }
+    }
+    else {
         sendMessage(client, "UNKNOWN_COMMAND");
     }
     // Добавить обработку других команд
 }
 
+QStringList Database::getAllUsernames() {
+    QStringList users;
+    QSqlQuery query("SELECT username FROM users");
+    while (query.next()) {
+        users << query.value(0).toString();
+    }
+    return users;
+}
+
 void Server::sendMessage(QTcpSocket* client, const QString& msg)
 {
     if (!client) return;
+    qDebug() << "[sendMessage] To client:" << client << "Message:" << msg;
     QByteArray data = msg.toUtf8();
     data.append('\n');
     client->write(data);
@@ -170,13 +232,19 @@ void Server::broadcast(const QString& msg)
 
 void Server::sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message)
 {
+     qDebug() << "[sendPrivateMessage] Looking for user:" << targetUsername;
     QMutexLocker locker(&m_clientsMutex);
     for (const auto& pair : m_clientIds) {
         QTcpSocket* sock = pair.first;
         int id = pair.second;
         QString uname = QString::fromStdString(m_database->getUserName(id));
+
+        qDebug() << "[sendPrivateMessage] Checking:" << uname;
+
         if (uname == targetUsername) {
-            sendMessage(sock, "<Private from " + sender + ">: " + message);
+            QString fullMsg = "PMSG " + sender + " " + targetUsername + " " + message;
+            qDebug() << "[sendPrivateMessage] Sending to" << uname << ":" << fullMsg;
+            sendMessage(sock, fullMsg);
             break;
         }
     }

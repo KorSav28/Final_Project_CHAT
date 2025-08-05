@@ -30,6 +30,8 @@ MainWindow::MainWindow(int userId, QString userName, client* clientPtr, QWidget 
 
     m_client->requestUserList();
 
+    m_client->requestHistory();
+
     auto timer = new QTimer(this);
     connect(timer, &QTimer::timeout, [this]() {
         m_client->requestUserList();
@@ -87,54 +89,55 @@ void MainWindow::on_SendMessageButton_clicked()
 
 void MainWindow::on_privateMessageSendButton_clicked()
 {
-    QDialog dialog(this);
-    dialog.setWindowTitle("Choose recipient");
+    QDialog* dialog = new QDialog(this);
+    dialog->setWindowTitle("Choose recipient");
 
-    QVBoxLayout layout;
-    QListWidget userList;
-    QDialogButtonBox buttons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    QVBoxLayout* layout = new QVBoxLayout(dialog);
+    QListWidget* userList = new QListWidget(dialog);
+    QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
 
-    layout.addWidget(&userList);
-    layout.addWidget(&buttons);
-    dialog.setLayout(&layout);
+    layout->addWidget(userList);
+    layout->addWidget(buttons);
+    dialog->setLayout(layout);
 
-    connect(&buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
 
     // Лямбда для обработки полученного списка пользователей
-    auto onUserListReceived = [&](const QStringList& users) {
-        userList.clear();
+    auto onUserListReceived = [=](const QStringList& users) {
+        userList->clear();
         for (const QString& name : users) {
             if (name != m_userName)  // исключаем себя из списка
-                userList.addItem(name);
+                userList->addItem(name);
         }
 
-        if (userList.count() == 0) {
+        if (userList->count() == 0) {
             QMessageBox::information(this, tr("No users"), tr("No other users online."));
-            dialog.reject();
+            dialog->reject();
+             dialog->deleteLater();
             return;
         }
 
-        if (dialog.exec() == QDialog::Accepted && userList.currentItem()) {
-            QString recipient = userList.currentItem()->text();
+        userList->setCurrentRow(0);
+
+        if (dialog->exec() == QDialog::Accepted && userList->currentItem()) {
+            QString recipient = userList->currentItem()->text();
             QString message = ui->messageLineEdit->text();
             if (!message.isEmpty()) {
                 m_client->sendPrivateMessage(recipient, message);
                 ui->messageLineEdit->clear();
             }
         }
+        dialog->deleteLater();
     };
 
-    // Объявляем переменную conn перед использованием в лямбде
-    QMetaObject::Connection conn;
-
-    // Подключаем сигнал, сохраняем соединение в conn
-    conn = connect(m_client, &client::userListReceived,
-                   this, [this, onUserListReceived, &conn](const QStringList& users) mutable {
-                       onUserListReceived(users);
-                       disconnect(conn); // отсоединяемся после первого вызова
-                   });
-
+    QMetaObject::Connection* conn = new QMetaObject::Connection;
+    *conn = connect(m_client, &client::userListReceived,
+                    this, [=](const QStringList& users) {
+                        QObject::disconnect(*conn);
+                        delete conn; // освободим память
+                        onUserListReceived(users);
+                    });
     m_client->requestUserList();
 }
 
@@ -152,13 +155,23 @@ void MainWindow::on_actionClose_this_client_triggered()
 
 void MainWindow::handlePublicMessage(const QString& from, const QString& text)
 {
+    qDebug() << "[UI] PUBLIC:" << from << text;
     QString formatted = QString("<%1>: %2").arg(from, text);
     ui->commonChatBrowser->append(formatted);
 }
 
 void MainWindow::handlePrivateMessage(const QString& from, const QString& to, const QString& text)
 {
-    QString formatted = QString("<Private %1 → %2>: %3").arg(from, to, text);
+    QString formatted;
+
+    if (from == m_userName) {
+        formatted = QString("<Вы → %1>: %2").arg(to, text);
+    } else if (to == m_userName) {
+        formatted = QString("<%1 → Вам>: %2").arg(from, text);
+    } else {
+        formatted = QString("<%1 → %2>: %3").arg(from, to, text);
+    }
+
     ui->privateChatBrowser->append(formatted);
 }
 

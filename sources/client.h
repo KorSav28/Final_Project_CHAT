@@ -21,6 +21,7 @@ public:
     void sendMessage(const QString& message);
     void sendPrivateMessage(const QString& recipient, const QString& message);
     void requestUserList();
+    void requestHistory();
 
 signals:
     void connected();
@@ -29,7 +30,7 @@ signals:
     void privateMessageReceived(const QString& from, const QString& to, const QString& message);
     void userListReceived(const QStringList& users);
     void errorOccurred(const QString& error);
-    void loginResult(bool success, int userId, const QString& username);
+    void loginResult(bool success, int userId, const QString& username, bool isAdmin);
     void registerResult(bool success, int userId, const QString& username);
 
 private slots:

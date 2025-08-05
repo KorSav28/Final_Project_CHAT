@@ -35,7 +35,11 @@ qt6_wrap_ui(QUI ${UI_FILES})
 qt6_add_resources (QRC ${RC_FILES})
 
 if(NOT Qt6_LUPDATE_EXECUTABLE)
-    set(Qt6_LUPDATE_EXECUTABLE "C:/NEW_QT/6.9.1/msvc2022_64/bin/lupdate.exe")
+    if(DEFINED ENV{LUPDATE_PATH})
+        set(Qt6_LUPDATE_EXECUTABLE "$ENV{LUPDATE_PATH}" CACHE FILEPATH "Path to lupdate tool")
+    else()
+        find_program(Qt6_LUPDATE_EXECUTABLE NAMES lupdate REQUIRED)
+    endif()
 endif()
 
 #здесь происходит создание файлов переводов и установка зависимостей,

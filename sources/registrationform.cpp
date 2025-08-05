@@ -62,7 +62,9 @@ void registrationform::on_buttonBox_rejected()
 void registrationform::onRegisterResult(bool success, int userId, const QString& userName)
 {
     if (success) {
-        emit accepted(userId, userName);
+        QMessageBox::information(this, tr("Registration Successful"), tr("You have been registered. Please login now."));
+        this->close(); // Закрываем форму регистрации
+        emit loginRequested();
     } else {
         QMessageBox::critical(this, tr("Registration Failed"), tr("Username already exists or invalid data."));
     }
