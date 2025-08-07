@@ -11,11 +11,13 @@
 
 int MainWindow::kInstanceCount = 0;
 
-MainWindow::MainWindow(int userId, QString userName, client* clientPtr, QWidget *parent)
+MainWindow::MainWindow(int userId, QString userName, client* clientPtr, std::shared_ptr<Database> db, Server* server, QWidget *parent)
     : QMainWindow(parent),
     ui(new Ui::MainWindow),
     m_userId(userId),
     m_userName (userName),
+    m_server(server),
+    m_db(db),
     m_client(clientPtr)
 
 
@@ -27,10 +29,10 @@ MainWindow::MainWindow(int userId, QString userName, client* clientPtr, QWidget 
 
     connect(m_client, &client::messageReceived, this, &MainWindow::handlePublicMessage);
     connect(m_client, &client::privateMessageReceived, this, &MainWindow::handlePrivateMessage);
-
+    connect(m_client, &client::kickedbyAdmin, this, &MainWindow::handleKickedByAdmin);
     m_client->requestUserList();
 
-    m_client->requestHistory();
+    //m_client->requestHistory();
 
     auto timer = new QTimer(this);
     connect(timer, &QTimer::timeout, [this]() {
@@ -48,25 +50,47 @@ MainWindow::~MainWindow()
 }
 
 
-MainWindow *MainWindow::createClient()
+MainWindow *MainWindow::createClient(std::shared_ptr<Database> db, Server* server) //октрытие панели для пользователя и админа
 {
     client* cl = new client;
-    cl->connectToServer("127.0.0.1", 12345); // ????
+    cl->connectToServer("127.0.0.1", 12345);
 
-    StartScreen s (cl);
-    s.setModal(true);
-    QObject::connect(&s, &StartScreen::accepted, [&]() {
-        qDebug() << "Login accepted";
+     StartScreen* s = new StartScreen(cl);
+    s->setModal(true);
+
+    MainWindow* mainWin = nullptr;
+
+    // Слот для обычного пользователя
+    QObject::connect(s, &StartScreen::accepted, [&](uint id, QString name, bool isAdmin) {
+        if (!isAdmin) {
+            qDebug() << "User logged in: " << name;
+            mainWin = new MainWindow(id, name, cl, db, server);
+            mainWin->show();
+        }
     });
 
-    s.exec();
+    // Слот для администратора: создание mainwindow + adminpanel
+    QObject::connect(s, &StartScreen::adminLoggedIn, [=, &mainWin]() {
+        qDebug() << "Admin logged in";
 
-    if (s.result() == QDialog::Accepted)
-    {
-        return new MainWindow(s.userId(), s.userName(), cl);
-    }
+        mainWin = new MainWindow(1, "admin", cl, db, server);
+        mainWin->setAttribute(Qt::WA_DeleteOnClose);
+        mainWin->show();
+
+        adminpanel* panel = new adminpanel(db, server);
+        panel->setAttribute(Qt::WA_DeleteOnClose);
+        panel->setWindowFlag(Qt::Window);
+        panel->show();
+    });
+
+
+    s->exec();
+
+    if (mainWin)
+        return mainWin;
 
     delete cl;
+    delete s;
     return nullptr;
 }
 
@@ -143,7 +167,7 @@ void MainWindow::on_privateMessageSendButton_clicked()
 
 void MainWindow::on_actionOpen_another_client_triggered()
 {
-   auto w = createClient();
+   auto w = createClient(m_db, m_server);
     if(w)
     w->show();
 }
@@ -153,14 +177,19 @@ void MainWindow::on_actionClose_this_client_triggered()
     this->close();
 }
 
-void MainWindow::handlePublicMessage(const QString& from, const QString& text)
+void MainWindow::handlePublicMessage(const QString& from, const QString& text) //вывод сообщений в общий чат
 {
     qDebug() << "[UI] PUBLIC:" << from << text;
-    QString formatted = QString("<%1>: %2").arg(from, text);
+    QString formatted;
+    if (from == "SERVER") {
+        formatted = text;
+    } else {
+        formatted = QString("<%1>: %2").arg(from, text);
+    }
     ui->commonChatBrowser->append(formatted);
 }
 
-void MainWindow::handlePrivateMessage(const QString& from, const QString& to, const QString& text)
+void MainWindow::handlePrivateMessage(const QString& from, const QString& to, const QString& text) //вывод сообщений в приватный чат
 {
     QString formatted;
 
@@ -175,16 +204,53 @@ void MainWindow::handlePrivateMessage(const QString& from, const QString& to, co
     ui->privateChatBrowser->append(formatted);
 }
 
-void MainWindow::on_themeToggleButton_clicked()
+void MainWindow::on_themeToggleButton_clicked() //изменить стиль
 {
+    qDebug() << "Theme";
     static bool darkMode = false;
     darkMode = !darkMode;
 
-    QString stylePath = darkMode ? "styles/dark.qss" : "styles/light.qss";
+    QString basePath = QCoreApplication::applicationDirPath() + "/styles";
+    QString stylePath = basePath + (darkMode ? "/dark.qss" : "/light.qss");
+    qDebug() << "Loading style from:" << stylePath;
     QFile styleFile(stylePath);
-    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
-        QString style = styleFile.readAll();
-        qApp->setStyleSheet(style);
+    if (!styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        qDebug() << "Could not open style file:" << stylePath;
+        return;
     }
+
+    QString style = styleFile.readAll();
+    qApp->setStyleSheet(style);
+    qDebug() << "Style applied.";
 }
 
+void MainWindow::handleKickedByAdmin() //отключение админом
+{
+    this->close();
+
+    m_client->connectToServer("127.0.0.1", 12345);
+
+    StartScreen* start = new StartScreen(m_client); // переиспользуем m_client
+    start->setModal(true);
+
+    // Повторный логин
+    QObject::connect(start, &StartScreen::accepted, [&](uint id, QString name, bool isAdmin) {
+        if (!isAdmin) {
+            qDebug() << "User re-logged in: " << name;
+            this->m_userId = id;
+            this->m_userName = name;
+            setWindowTitle(QString("Chat - %1").arg(m_userName));
+            this->show();
+        }
+    });
+
+    QObject::connect(start, &StartScreen::adminLoggedIn, [=]() {
+        qDebug() << "Admin re-logged in";
+        this->close(); // Закрываем старое окно
+        adminpanel* panel = new adminpanel(m_db, m_server);
+        panel->setAttribute(Qt::WA_DeleteOnClose);
+        panel->show();
+    });
+
+    start->exec();
+}

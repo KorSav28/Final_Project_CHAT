@@ -19,17 +19,16 @@ public:
     ~adminpanel();
 
 private slots:
-    void on_refreshButton_clicked();
-    void on_banUserButton_clicked();
-    void on_unbanUserButton_clicked();
-    void on_disconnectUserButton_3_clicked();
-    void on_reconnectUserButton_clicked();
-    void on_messageTypeComboBox_currentIndexChanged(int index);
-    void on_userFilterComboBox_currentIndexChanged(int index);
+    void on_refreshButton_clicked(); // обновить все
+    void on_banUserButton_clicked(); // забанить пользователя
+    void on_unbanUserButton_clicked(); // разбанить пользователя
+    void on_disconnectUserButton_3_clicked(); // отключить пользователя
+    void on_messageTypeComboBox_currentIndexChanged(int index); // выбор типа сообщения (все, общие, приватные)
+    void on_userFilterComboBox_currentIndexChanged(int index); // выбор пользователя для просмотра сообщений
 
 private:
-    void updateUserList();
-    void updateMessageList();
+    void updateUserList(); // обновить список пользователей
+    void updateMessageList(); // обновить список сообщений
 
     Ui::adminpanel *ui;
     std::shared_ptr<Database> m_dbPtr;

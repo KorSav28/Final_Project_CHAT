@@ -6,7 +6,7 @@
 
 Server::Server(QObject* parent) : QTcpServer(parent) {}
 
-bool Server::startServer(quint16 port)
+bool Server::startServer(quint16 port) //запуск сервера
 {
     if (!listen(QHostAddress::Any, port))
     {
@@ -18,7 +18,7 @@ bool Server::startServer(quint16 port)
     return true;
 }
 
-void Server::stopServer() {
+void Server::stopServer() { //остановка сервера
     QMutexLocker locker(&m_clientsMutex);
     close();
     for (QTcpSocket* sock : m_clients) {
@@ -35,12 +35,12 @@ void Server::setDatabase(std::shared_ptr<Database> db)
     m_database = db;
 }
 
-void Server::onNewConnection()
+void Server::onNewConnection() //обработка новых подключений
 {
     while (hasPendingConnections()){
         QTcpSocket*clientSocket = nextPendingConnection();
         QString ip = clientSocket->peerAddress().toString();
-        if (m_bannedIps.contains(ip) && m_bannedIps[ip]) {
+        if (m_bannedIps.contains(ip) && m_bannedIps[ip]) { //проверка ip на бан
             qDebug() << "Rejected connection from banned IP:" << ip;
             clientSocket->disconnectFromHost();
             continue;
@@ -57,7 +57,7 @@ void Server::onNewConnection()
     }
 }
 
-void Server::onReadyRead()
+void Server::onReadyRead() //чтение входящих сообщений от клиента
 {
     auto *clientSocket = qobject_cast<QTcpSocket*> (sender());
     if (!clientSocket) return;
@@ -70,7 +70,7 @@ void Server::onReadyRead()
     }
 }
 
-void Server::onClientDisconnect()
+void Server::onClientDisconnect() //обработка отключения клиента
 {
     QTcpSocket *clientSocket = qobject_cast<QTcpSocket*> (sender());
     if (!clientSocket) return;
@@ -82,7 +82,7 @@ void Server::onClientDisconnect()
     qDebug()<< "Client disconnected";
 }
 
-void Server::processCommand(QTcpSocket* client, const QString& msg)
+void Server::processCommand(QTcpSocket* client, const QString& msg) //обработка команд
 {
     QStringList parts = msg.split(' ', Qt::SkipEmptyParts);
     if (parts.isEmpty()) return;
@@ -120,27 +120,27 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
 
             sendMessage(client, "LOGIN_OK " + QString::number(id) + " " + username + " " + adminFlag);
 
-            // общий чат
+            // отправка прошлых сообщений в общий чат
             std::vector<std::string> publicMessages = m_database->getChatMessages();
             for (const std::string& msg : publicMessages) {
                 sendMessage(client, QString::fromStdString(msg));
             }
 
-            // приватные сообщения
-            std::vector<Message> privateMessages = m_database->getUndeliveredPrivateMessages(id);
+            // отправка прошлых сообщений в приватный чат
+            std::vector<Message> privateMessages = m_database->getPrivateMessage(id);
             for (const Message& msg : privateMessages) {
                 QString sender = QString::fromStdString(msg.getSender());
-                QString receiver = username;
+                QString receiver = QString::fromStdString(m_database->getUserName(msg.getDest()));
                 QString text = QString::fromStdString(msg.getText());
                 sendMessage(client, "PMSG " + sender + " " + receiver + " " + text);
             }
 
-            m_database->markMessagesAsDelivered(id);
+            //m_database->markMessagesAsDelivered(id);
         } else {
             sendMessage(client, "LOGIN_FAIL");
         }
 
-    } else if (cmd == "MSG" && parts.size() >= 2) {
+    } else if (cmd == "MSG" && parts.size() >= 2) { //общий чат
         if (m_clientIds.find(client) == m_clientIds.end()) {
             sendMessage(client, "ERROR Not logged in");
             return;
@@ -150,7 +150,7 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
         m_database->addChatMessage(sender.toStdString(), message.toStdString());
         broadcast("<" + sender + ">: " + message);
 
-    } else if (cmd == "PMSG" && parts.size() >= 3) {
+    } else if (cmd == "PMSG" && parts.size() >= 3) { //приватный чат
         if (m_clientIds.find(client) == m_clientIds.end()) {
             sendMessage(client, "ERROR Not logged in");
             return;
@@ -162,8 +162,8 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
         if (m_database->addPrivateMessage(sender.toStdString(), target.toStdString(), message.toStdString())) {
             QString fullMsg = "PMSG " + sender + " " + target + " " + message;
 
-            sendMessage(client, fullMsg); // ← Отправитель получит его и отобразит в приватном чате
-            sendPrivateMessage(target, sender, message);
+            sendMessage(client, fullMsg); //отправитель видит сообщение
+            sendPrivateMessage(target, sender, message); // получатель видит сообщение
         } else {
             sendMessage(client, "PMSG_FAILED");
         }
@@ -177,7 +177,19 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
             sendMessage(client, response);
         }
     else if (cmd == "HISTORY") {
-        auto messages = m_database->getRecentMessages(50); // Получаем последние 50 сообщений
+        int userId = -1;
+        {
+            QMutexLocker locker(&m_clientsMutex);
+            if (m_clientIds.find(client) != m_clientIds.end()) {
+                userId = m_clientIds[client];
+            }
+        }
+
+        if (userId == -1) {
+            sendMessage(client, "ERROR Not logged in");
+            return;
+        }
+            auto messages = m_database->getRecentMessages(50, userId); // Получаем последние 50 сообщений
         for (const Message& msg : messages) {
             if (msg.getDest() == -1) { // Сообщение в общий чат
                 QString text = QString("HISTORY_MSG %1 %2 %3\n")
@@ -186,7 +198,8 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
                                    .arg(QString::fromStdString(msg.getText()));
 
                 client->write(text.toUtf8());
-            } else {
+            } else { //приватыне сообщения
+                if (msg.getDest() == userId || msg.getSenderId() == userId) {
                 QString recipientName = QString::fromStdString(m_database->getUserName(msg.getDest()));
                 QString text = QString("HISTORY_PMSG %1 %2 %3 %4\n")
                                    .arg(QString::fromStdString(msg.getSender()))
@@ -195,6 +208,7 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
                                    .arg(QString::fromStdString(msg.getText()));
 
                 client->write(text.toUtf8());
+                }
             }
         }
     }
@@ -204,7 +218,7 @@ void Server::processCommand(QTcpSocket* client, const QString& msg)
     // Добавить обработку других команд
 }
 
-QStringList Database::getAllUsernames() {
+QStringList Database::getAllUsernames() { //получить список всех имен
     QStringList users;
     QSqlQuery query("SELECT username FROM users");
     while (query.next()) {
@@ -213,7 +227,7 @@ QStringList Database::getAllUsernames() {
     return users;
 }
 
-void Server::sendMessage(QTcpSocket* client, const QString& msg)
+void Server::sendMessage(QTcpSocket* client, const QString& msg) //отправить сообщение конктретному клиенту
 {
     if (!client) return;
     qDebug() << "[sendMessage] To client:" << client << "Message:" << msg;
@@ -222,7 +236,7 @@ void Server::sendMessage(QTcpSocket* client, const QString& msg)
     client->write(data);
 }
 
-void Server::broadcast(const QString& msg)
+void Server::broadcast(const QString& msg) //отправить сообщение всем
 {
     QMutexLocker locker(&m_clientsMutex);
     for (QTcpSocket* client : m_clients) {
@@ -230,7 +244,7 @@ void Server::broadcast(const QString& msg)
     }
 }
 
-void Server::sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message)
+void Server::sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message) //отправка приватного сообщения по имени
 {
      qDebug() << "[sendPrivateMessage] Looking for user:" << targetUsername;
     QMutexLocker locker(&m_clientsMutex);
@@ -250,29 +264,27 @@ void Server::sendPrivateMessage(const QString& targetUsername, const QString& se
     }
 }
 
-void Server::kickClient(QTcpSocket* client)
+void Server::kickClient(QTcpSocket* client) //отключить клиента
 {
     if (!client) return;
-    sendMessage(client, "You have been kicked by admin.");
+    sendMessage(client, "KICK");
     client->disconnectFromHost();
-    QMutexLocker locker(&m_clientsMutex);
     m_clients.removeAll(client);
     m_clientIds.erase(client);
 }
 
-void Server::banClient(QTcpSocket* client)
+void Server::banClient(QTcpSocket* client) //забанить клиента
 {
     if (!client) return;
     QString ip = client->peerAddress().toString();
     m_bannedIps[ip] = true;
-    sendMessage(client, "You have been banned.");
+    sendMessage(client, "BAN");
     client->disconnectFromHost();
-    QMutexLocker locker(&m_clientsMutex);
     m_clients.removeAll(client);
     m_clientIds.erase(client);
 }
 
-bool Server::banUserByName(const std::string& username)
+bool Server::banUserByName(const std::string& username) //забанить клиента по имени
 {
     bool success = m_database->setUserBanStatus(username, true);
     if (!success) return false;
@@ -287,12 +299,12 @@ bool Server::banUserByName(const std::string& username)
     return true;
 }
 
-bool Server::unbanUserByName(const std::string& username)
+bool Server::unbanUserByName(const std::string& username) //разбанить клиента по имени
 {
     return m_database->setUserBanStatus(username, false);
 }
 
-bool Server::kickUserByName(const std::string& username)
+bool Server::kickUserByName(const std::string& username) //отключить клиента по имени
 {
     QMutexLocker locker(&m_clientsMutex);
     for (QTcpSocket* sock : m_clients) {

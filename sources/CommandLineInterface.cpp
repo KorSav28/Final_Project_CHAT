@@ -1,10 +1,8 @@
-﻿#include "CommandLineInterface.h"
+﻿/*#include "CommandLineInterface.h"
 #include "Parsing.h"
 #include "Database.h"
 #include <iostream>
 #include <string>
-
-//'Ανθρωπος
 
 using namespace std;
 
@@ -242,3 +240,4 @@ void CommandLineInterface::showCountPM() {
 	int countpm = pm.size();
 	if(countpm)	cout << "You have " << pm.size() << " private messages." << endl;
 }
+*/

@@ -18,8 +18,8 @@ public:
     explicit StartScreen(client* clientPtr,
                          QWidget *parent = nullptr);
     ~StartScreen();
-    void setLoginForm();
-    void setRegistrationForm();
+    void setLoginForm(); //установить панель авторизации
+    void setRegistrationForm(); // установить панель регистрации
 
     int userId() const;
 
@@ -30,7 +30,8 @@ public slots:
     void onRejectRequested();
 
 signals:
-    void accepted(uint userId, QString userName);
+    void accepted(uint userId, QString userName, bool isAdmin); //если вошел обычный пользователь
+    void adminLoggedIn(); //сигнал для входа администратора
 
 private:
     Ui::StartScreen *ui;

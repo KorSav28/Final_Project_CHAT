@@ -1,22 +1,21 @@
 #include "Message.h"
 int Message::num = 0;
 int Message::messageCounter = 0;
-//сообщение в чат
-Message::Message() : _id(num), _sender(""), _destID(0), _text(""), _timestamp(QDateTime::currentDateTime()) //???
+
+Message::Message() : _id(num), _senderID(-1), _sender(""), _destID(0), _text(""), _timestamp(QDateTime::currentDateTime())
 {
 } 
-Message::Message(std::string writer, std::string text) : _id(++num), _sender(writer), _destID(-1), _text(text), _timestamp(QDateTime::currentDateTime())//???
+Message::Message(int senderID, std::string writer, std::string text) : _id(++num), _senderID(senderID), _sender(writer), _destID(-1), _text(text), _timestamp(QDateTime::currentDateTime())//???
 {   
     messageCounter++;
 }
-//личное сообщение
-Message::Message(std::string writer, int target, std::string text) : _id(++num), _sender(writer), _destID(target), _text(text), _timestamp(QDateTime::currentDateTime())
+
+Message::Message(int senderID, std::string writer, int target, std::string text) : _id(++num), _senderID(senderID), _sender(writer), _destID(target), _text(text), _timestamp(QDateTime::currentDateTime())
 {
     messageCounter++;
 }
-//??
-Message::Message(std::string writer, int target, std::string text, QDateTime timestamp)
-    : _id(++num), _sender(writer), _destID(target), _text(text), _timestamp(timestamp)
+
+Message::Message(int senderID, std::string writer, int target, std::string text, QDateTime timestamp): _id(++num), _senderID(senderID), _sender(writer), _destID(target), _text(text), _timestamp(timestamp)
 {
     messageCounter++;
 }
@@ -24,9 +23,13 @@ Message::Message(std::string writer, int target, std::string text, QDateTime tim
 QDateTime Message::getTimestamp() const {
     return _timestamp;
 }
-//??
+
 bool Message::searchByTarget(int n) const {
     return (_destID == n); 
+}
+
+int Message::getSenderId() const {
+    return _senderID;
 }
 
 std::string Message::getSender() const {

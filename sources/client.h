@@ -14,39 +14,43 @@ public:
     ~client();
 
     void connectToServer(const QString& host, quint16 port); // устанавливает соединение
-    void disconnectFromServer();
+    void disconnectFromServer(); //разрывает соединение
 
-    void login(const QString& username, const QString& password);
-    void registerUser(const QString& username, const QString& password);
-    void sendMessage(const QString& message);
-    void sendPrivateMessage(const QString& recipient, const QString& message);
-    void requestUserList();
-    void requestHistory();
+    void login(const QString& username, const QString& password); //логин
+    void registerUser(const QString& username, const QString& password); //регистрация
+
+    void sendMessage(const QString& message); // отправить сообщение всем
+    void sendPrivateMessage(const QString& recipient, const QString& message); // отправить сообщение приватно
+
+    void requestUserList(); // предоставить список пользователей
+    void requestHistory(); // предоставить историю сообщений
 
 signals:
-    void connected();
-    void disconnected();
-    void messageReceived(const QString& from, const QString& message);
-    void privateMessageReceived(const QString& from, const QString& to, const QString& message);
-    void userListReceived(const QStringList& users);
-    void errorOccurred(const QString& error);
-    void loginResult(bool success, int userId, const QString& username, bool isAdmin);
-    void registerResult(bool success, int userId, const QString& username);
+    void connected(); // подключился к серверу
+    void disconnected(); //отключился от сервера
+
+    void messageReceived(const QString& from, const QString& message); // получено общее сообщение
+    void privateMessageReceived(const QString& from, const QString& to, const QString& message); // получено приватное сообщение
+    void userListReceived(const QStringList& users); // получен список пользователей
+
+    void loginResult(bool success, int userId, const QString& username, bool isAdmin); // реазультат авторизации
+    void registerResult(bool success, int userId, const QString& username); // результат регистрации
+
+    void errorOccurred(const QString& error); //произошла ошибка
+    void kickedbyAdmin(); //пользователь был отключен администратором
 
 private slots:
-    void onConnected();
-    void onDisconnected();
-    void onReadyRead();
-    void onErrorOccurred(QAbstractSocket::SocketError socketError);
+    void onConnected(); //соединение установлено
+    void onDisconnected(); //соединение разорвано
+    void onReadyRead(); // данные готовы к чтению
+    void onErrorOccurred(QAbstractSocket::SocketError socketError); // ошибка сокета
 
 private:
-    void sendCommand(const QString& command);
+    void sendCommand(const QString& command); // отправить строковую команду на сервер
 
     QTcpSocket* m_socket;
     int m_userId = -1;
     QString m_username;
-
-
 };
 
 #endif // CLIENT_H

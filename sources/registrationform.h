@@ -19,7 +19,7 @@ public:
 
 signals:
     void loginRequested();
-    void accepted (int userId, QString userName);
+    void accepted (int userId, QString userName, bool isAdmin);
     void rejected ();
 
 private slots:

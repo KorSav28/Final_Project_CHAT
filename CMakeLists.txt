@@ -73,3 +73,11 @@ target_link_libraries (Chat
 PUBLIC
 ${CHAT_LIBRARIES}
 )
+
+# Копирование QSS-файлов в директорию сборки
+file(GLOB STYLE_FILES "${CMAKE_SOURCE_DIR}/styles/*.qss")
+
+foreach(style_file ${STYLE_FILES})
+    get_filename_component(style_filename ${style_file} NAME)
+    configure_file(${style_file} ${CMAKE_CURRENT_BINARY_DIR}/styles/${style_filename} COPYONLY)
+endforeach()

@@ -5,6 +5,9 @@
 #include <memory>
 #include "client.h"
 
+class Database;
+class Server;
+
 namespace Ui {
 class MainWindow;
 }
@@ -15,10 +18,10 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(int userId, QString userName,
-                        client* clientPtr,
+                        client* clientPtr,std::shared_ptr<Database> db, Server* server,
                         QWidget *parent = nullptr);
     ~MainWindow();
-    static MainWindow* createClient();
+    static MainWindow* createClient(std::shared_ptr<Database> db, Server* server);
 
     static int kInstanceCount;
 
@@ -29,16 +32,20 @@ private slots:
     void on_actionOpen_another_client_triggered();
     void on_actionClose_this_client_triggered();
 
-    void handlePublicMessage(const QString& from, const QString& text);
-    void handlePrivateMessage(const QString& from, const QString& to, const QString& text);
+    void handlePublicMessage(const QString& from, const QString& text); //общий чат
+    void handlePrivateMessage(const QString& from, const QString& to, const QString& text); //приватный чат
 
-    void on_themeToggleButton_clicked();
+    void handleKickedByAdmin(); //отключен админом
+
+    void on_themeToggleButton_clicked();//изменить стиль
 
 private:
     Ui::MainWindow *ui;
     client* m_client;
     int m_userId;
     QString m_userName;
+    std::shared_ptr<Database> m_db;
+    Server* m_server;
 };
 
 #endif // MAINWINDOW_H

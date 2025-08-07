@@ -25,11 +25,8 @@ signals:
 
 private slots:
     void on_buttonBox_accepted();
-
     void on_buttonBox_rejected();
-
     void on_registrationpushButton_clicked();
-
     void onLoginResult(bool success, int userId, const QString& userName, bool isAdmin);
 
 private:

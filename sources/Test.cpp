@@ -5,6 +5,7 @@
 #include <QTranslator>
 #include "server.h"
 #include "Database.h"
+#include "adminpanel.h"
 using namespace std;
 
 int main(int argc, char *argv[])
@@ -13,7 +14,8 @@ int main(int argc, char *argv[])
 
    qDebug() << "Available SQL drivers:" << QSqlDatabase::drivers();
 
-    QTranslator myappTranslator;
+   // файлы для переводов
+   QTranslator myappTranslator;
     myappTranslator.load("translations/my_ru.qm");
     a.installTranslator(&myappTranslator);
 
@@ -22,7 +24,6 @@ int main(int argc, char *argv[])
     a.installTranslator(&qtTranslator);
 
     Server server;
-    // если нужно, присоединяем базу данных
     auto db = std::make_shared<Database>();
     server.setDatabase(db);
 
@@ -31,7 +32,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-   auto w = MainWindow::createClient();
+   auto w = MainWindow::createClient(db, &server);
    if (w)
        w->show();
    else

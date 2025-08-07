@@ -47,19 +47,19 @@ QString StartScreen::userName() const
     return m_userName;
 }
 
-void StartScreen::onLoggedIn(uint userId, QString userName, bool isAdmin)
+void StartScreen::onLoggedIn(uint userId, QString userName, bool isAdmin) //обработка успешного входа
 {
      qDebug() << "StartScreen::onLoggedIn called with user:" << userName;
-    /*if (isAdmin) {
-        adminpanel* admin = new adminpanel(std::shared_ptr<Database>(m_dbPtr), m_serverPtr);
-        admin->setAttribute(Qt::WA_DeleteOnClose);  // автоматическое удаление при закрытии
-        admin->show();
-        this->close(); // Закрываем окно логина
-        return;
-    }*/
     m_userId = userId;
     m_userName = userName;
-    emit accepted(userId, userName);
+
+    if (isAdmin) {
+        emit adminLoggedIn();
+        hide();
+        return;
+    }
+
+    emit accepted(userId, userName, isAdmin);
     accept();
 }
 

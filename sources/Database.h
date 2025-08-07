@@ -1,7 +1,8 @@
 #pragma once
-#include <vector>
 #include "User.h"
 #include "Message.h"
+
+#include <vector>
 #include <string>
 #include <unordered_map>
 
@@ -15,38 +16,40 @@ using std::vector;
 class Database
 {
     QSqlDatabase db;
-    int searchUserByName(const string& username) const;
+    int searchUserByName(const string& username) const; //поиск пользователя по имени
 
 public:
 
 	Database();
 
-    vector<string> getUserList() const;
-    string getUserName(int userId) const;
+    vector<string> getUserList() const; //получить всех пользователей
+    string getUserName(int userId) const; // получить имя пользователя по ID
+
     vector<string> getChatMessages() const;//показать все сообщения
-    vector<Message> getPrivateMessage(int userID = -1) const;//показать личные сообщения пользователю username
+    vector<Message> getPrivateMessage(int userID = -1) const; //показать приватные сообщения
+    vector<Message> getPrivateMessageForAdmin() const; //показать приватные сообщения для админа
 
-    bool connect();
+   bool connect(); //подключение к БД
 
-    void printAllUsers() const;
-    void debugPrintAllUsers() const;
-    QStringList getAllUsernames();
+    void debugPrintAllUsers() const;//для вывода пользователей в консоль
 
-    int addUser(const string& username, const string& password);
-    int checkPassword(const string& username, const string& password);
+    QStringList getAllUsernames(); //получить всех пользователей в формате QString
 
-    void addChatMessage(const string& sender, const string& message);
-    bool addPrivateMessage(const string& sender, const string& target, const string& message);
+    int addUser(const string& username, const string& password); //добавить нового пользователя
+    int checkPassword(const string& username, const string& password); //проверка пароля
 
+    void addChatMessage(const string& sender, const string& message); //добавить общие сообщения
+    bool addPrivateMessage(const string& sender, const string& target, const string& message); //добавить приватные сообщения
+
+    //проверка и установка статуса бана
     bool isUserBanned(const string& username) const;
     bool setUserBanStatus(const string& username, bool banned);
-    vector<std::pair<string, bool>> getAllUsersWithBanStatus() const;
+    vector<std::pair<string, bool>> getAllUsersWithBanStatus() const; // получить список пользователей со статусом бан
 
-    //для получения недоставленных сообщений
-    std::vector<Message> getUndeliveredPrivateMessages(int userId) const;
-    bool markMessagesAsDelivered(int userId);
+    /*std::vector<Message> getUndeliveredPrivateMessages(int userId) const; //получить недоставленные сообщения
+    bool markMessagesAsDelivered(int userId); // пометить все сообщения как доставленные*/
 
-    vector<Message> getRecentMessages(int limit = 50) const;
+    std::vector<Message> getRecentMessages(int limit, int userId) const; //получить последние 50 сообщений
 
-    bool isUserAdmin(const std::string& username) const; // для админа
+    bool isUserAdmin(const std::string& username) const; //проверка статуса админа
 };

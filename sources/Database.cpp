@@ -1,27 +1,26 @@
 ﻿#include "Database.h"
 #include "Parsing.h"
 #include "sha1.h"
+
 #include <memory>
 #include <iostream>
 #include <QtSql>
 #include <QDebug>
 
-//'Ανθρωπος
-
 Database::Database()
 {
     connect();
     if (connect()) {
-        printAllUsers();
         debugPrintAllUsers();
     } else {
         qDebug() << "Failed to connect to database";
     }
 }
 
-bool Database::connect ()
+bool Database::connect()
 {
     qDebug() << "Current working directory:" << QDir::currentPath();
+    //настройка подключения к QSLite
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setHostName("localhost");
     db.setDatabaseName("chatdb");
@@ -33,8 +32,9 @@ bool Database::connect ()
         return false;
     }
 
-    QSqlQuery q;
+    QSqlQuery q; //для выполнения запросов
 
+    //создание таблицы пользователей
     q.exec("CREATE TABLE IF NOT EXISTS users ("
            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
            "username TEXT UNIQUE,"
@@ -42,6 +42,7 @@ bool Database::connect ()
            "is_banned BOOLEAN DEFAULT FALSE, "
            "isadmin INTEGER DEFAULT 0)");
 
+    //создание таблицы сообщений
     q.exec("CREATE TABLE IF NOT EXISTS messages ("
            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
            "sender TEXT, "
@@ -50,6 +51,7 @@ bool Database::connect ()
            "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
            "delivered BOOLEAN DEFAULT FALSE)");
 
+    //вывод всех пользователей в БД
     QSqlQuery usersQuery("SELECT username FROM users");
     qDebug() << "Users in database:";
     while (usersQuery.next()) {
@@ -65,6 +67,7 @@ bool Database::connect ()
     }
     checkUser.next();
 
+    //создание админа
     if (checkUser.value(0).toInt() == 0) {
         QSqlQuery insertUser;
         insertUser.prepare("INSERT INTO users (username, password, isadmin) VALUES (:u, :p, 1)");
@@ -74,17 +77,16 @@ bool Database::connect ()
             qDebug() << "Failed to insert test user:" << insertUser.lastError().text();
             return false;
         } else {
-            qDebug() << "Inserted test user 'tolik'";
+            qDebug() << "Inserted test user 'admin'";
         }
     }
 
     return true;
 }
 
-int Database::addUser(const string& username, const string& password)
+int Database::addUser(const string& username, const string& password) //добавление нового пользователя
 {
-    QString uname = QString::fromStdString(username);
-   //УТОЧНИТЬ ПО ФУНКЦИИ SHA1
+   QString uname = QString::fromStdString(username);
    QString passhash = QString::fromStdString(sha1_to_hex_string(password));
    qDebug() << "[addUser] Trying to add user:" << uname << "with hash:" << passhash;
 
@@ -102,7 +104,7 @@ int Database::addUser(const string& username, const string& password)
     return -1;
 }
 
-int Database::checkPassword(const string& username, const string& password)
+int Database::checkPassword(const string& username, const string& password) //проверка логина и пароля
 {
     QString uname = QString::fromStdString(username);
     QString passhash = QString::fromStdString(sha1_to_hex_string(password));
@@ -110,7 +112,7 @@ int Database::checkPassword(const string& username, const string& password)
 
     QSqlQuery q;
 
-    // Дополнительная проверка: есть ли пользователь с таким именем вообще
+    // Проверка имени пользователя
     QSqlQuery qUserExists;
     qUserExists.prepare("SELECT COUNT(*) FROM users WHERE username = :u");
     qUserExists.bindValue(":u", uname);
@@ -126,7 +128,7 @@ int Database::checkPassword(const string& username, const string& password)
         return -1;
     }
 
-    // Теперь проверяем пароль
+    // Проверка пароля
     q.prepare("SELECT id FROM users WHERE username = :u AND password = :p");
     q.bindValue(":u", uname);
     q.bindValue(":p", passhash);
@@ -145,7 +147,7 @@ int Database::checkPassword(const string& username, const string& password)
     return -1;
 }
 
-int Database::searchUserByName(const string& username) const
+int Database::searchUserByName(const string& username) const //поиск Id пользователя по имени
 {
     QSqlQuery q;
     q.prepare("SELECT id FROM users WHERE username = :u");
@@ -157,7 +159,7 @@ int Database::searchUserByName(const string& username) const
     return -1;
 }
 
-void Database::addChatMessage(const string& sender, const string& message)
+void Database::addChatMessage(const string& sender, const string& message) //добавить сообщения в БД для общего чата
 {
     QSqlQuery q;
     q.prepare("INSERT INTO messages (sender, recipient, text) VALUES (:s, NULL, :m)");
@@ -166,7 +168,7 @@ void Database::addChatMessage(const string& sender, const string& message)
     q.exec();
 }
 
-bool Database::addPrivateMessage(const string& sender, const string& target, const string& message)
+bool Database::addPrivateMessage(const string& sender, const string& target, const string& message) //добавить сообщения в БД для приватного чата
 {
     int recipientId = searchUserByName(target);
     if (recipientId == -1) return false;
@@ -179,7 +181,7 @@ bool Database::addPrivateMessage(const string& sender, const string& target, con
     return q.exec();
 }
 
-vector<string> Database::getUserList() const
+vector<string> Database::getUserList() const //получить список пользователей
 {
     vector<string> users;
  QSqlQuery q("SELECT username FROM users");
@@ -189,7 +191,7 @@ vector<string> Database::getUserList() const
     return users;
 }
 
-string Database::getUserName(int userId) const
+string Database::getUserName(int userId) const //поиск имени по Id
 {
     qDebug() << "DB: looking up username for id:" << userId;
     QSqlQuery q;
@@ -203,47 +205,82 @@ string Database::getUserName(int userId) const
 }
 
 
-vector<string> Database::getChatMessages() const
+vector<string> Database::getChatMessages() const //получить сообщения общего чата
 {
     vector<string> result;
     QSqlQuery q ("SELECT sender, text FROM messages WHERE recipient IS NULL ORDER BY timestamp");
     while (q.next()) {
-        string line = "<" + q.value(0).toString().toStdString() + ">: " + q.value(1).toString().toStdString();
+        std::string line = "<" + q.value(0).toString().toStdString() + ">: " + q.value(1).toString().toStdString();
         result.push_back(line);
     }
     return result;
 }
 
-vector<Message> Database::getPrivateMessage(int userID) const
-{
-    vector<Message> messages;
+std::vector<Message> Database::getPrivateMessage(int userID) const { //получить приватные сообщения
+    std::vector<Message> messages;
     QSqlQuery q;
-    if (userID == -1) {
-        q.prepare("SELECT sender, recipient, text FROM messages WHERE recipient IS NOT NULL ORDER BY timestamp");
-    } else {
-        q.prepare("SELECT sender, recipient, text FROM messages WHERE recipient = :id ORDER BY timestamp");
-        q.bindValue(":id", userID);
-    }
+
+    q.prepare(R"(
+        SELECT sender, recipient, text, timestamp
+        FROM messages
+        WHERE recipient IS NOT NULL AND
+              (recipient = :id OR sender = (SELECT username FROM users WHERE id = :id))
+        ORDER BY timestamp DESC
+    )");
+
+    q.bindValue(":id", userID);
 
     if (q.exec()) {
         while (q.next()) {
-            string sender = q.value(0).toString().toStdString();
+            std::string sender = q.value(0).toString().toStdString();
             int recipient = q.value(1).toInt();
-            string text = q.value(2).toString().toStdString();
-            messages.emplace_back(sender, recipient, text);
+            std::string text = q.value(2).toString().toStdString();
+            QDateTime timestamp = q.value(3).toDateTime();
+            int senderID = searchUserByName(sender);
+            messages.emplace_back(senderID, sender, recipient, text, timestamp);
         }
     }
+
+    // Разворачиваем в хронологическом порядке (от старых к новым)
+    std::reverse(messages.begin(), messages.end());
+
     return messages;
 }
 
-bool Database::isUserBanned(const string& username) const {
+std::vector<Message> Database::getPrivateMessageForAdmin() const { //получить приватные сообщения для админа
+    std::vector<Message> messages;
+    QSqlQuery q;
+
+    q.prepare(R"(
+        SELECT sender, recipient, text, timestamp
+        FROM messages
+        WHERE recipient IS NOT NULL
+        ORDER BY timestamp DESC
+    )");
+
+    if (q.exec()) {
+        while (q.next()) {
+            std::string sender = q.value(0).toString().toStdString();
+            int recipient = q.value(1).toInt();
+            std::string text = q.value(2).toString().toStdString();
+            QDateTime timestamp = q.value(3).toDateTime();
+            int senderID = searchUserByName(sender);
+            messages.emplace_back(senderID, sender, recipient, text, timestamp);
+        }
+    }
+
+    std::reverse(messages.begin(), messages.end());
+    return messages;
+}
+
+bool Database::isUserBanned(const string& username) const {    //проверка бан-статуса по имени
     QSqlQuery q;
     q.prepare("SELECT is_banned FROM users WHERE username = :u");
     q.bindValue(":u", QString::fromStdString(username));
     return q.exec() && q.next() && q.value(0).toBool();
 }
 
-bool Database::setUserBanStatus(const string& username, bool banned) {
+bool Database::setUserBanStatus(const string& username, bool banned) { //установка бан-статуса по имени
     QSqlQuery q;
     q.prepare("UPDATE users SET is_banned = :b WHERE username = :u");
     q.bindValue(":b", banned);
@@ -251,7 +288,7 @@ bool Database::setUserBanStatus(const string& username, bool banned) {
     return q.exec();
 }
 
-vector<std::pair<string, bool>> Database::getAllUsersWithBanStatus() const {
+vector<std::pair<string, bool>> Database::getAllUsersWithBanStatus() const { //получить всех пользователей, у которых бан-статус
     vector<std::pair<string, bool>> result;
     QSqlQuery q("SELECT username, is_banned FROM users");
     while (q.next()) {
@@ -262,30 +299,19 @@ vector<std::pair<string, bool>> Database::getAllUsersWithBanStatus() const {
     return result;
 }
 
-void Database::printAllUsers() const
+void Database::debugPrintAllUsers() const //напечатать всех пользователей для debug
 {
-    QSqlQuery query("SELECT id, username, password FROM users");
-    while (query.next()) {
-        int id = query.value(0).toInt();
-        QString username = query.value(1).toString();
-        QString password = query.value(2).toString();
-        qDebug() << "User id:" << id << ", username:" << username << ", password hash:" << password;
-    }
-}
-
-void Database::debugPrintAllUsers() const
-{
-    qDebug() << "=== DEBUG: All users and hashes ===";
+    qDebug() << "== DEBUG: All users and hashes ==";
     QSqlQuery q("SELECT id, username, password FROM users");
     while (q.next()) {
         qDebug() << "ID:" << q.value(0).toInt()
         << "Username:" << q.value(1).toString()
         << "Hash:" << q.value(2).toString();
     }
-    qDebug() << "=== END DEBUG ===";
+    qDebug() << "== END DEBUG ==";
 }
 
-std::vector<Message> Database::getUndeliveredPrivateMessages(int userId) const {
+/*std::vector<Message> Database::getUndeliveredPrivateMessages(int userId) const { //получить список доставленных приватных сообщений
     std::vector<Message> messages;
     QSqlQuery q;
     q.prepare("SELECT sender, recipient, text FROM messages WHERE recipient = :id AND delivered = FALSE ORDER BY timestamp");
@@ -296,39 +322,54 @@ std::vector<Message> Database::getUndeliveredPrivateMessages(int userId) const {
             std::string sender = q.value(0).toString().toStdString();
             int recipient = q.value(1).toInt();
             std::string text = q.value(2).toString().toStdString();
-            messages.emplace_back(sender, recipient, text);
+            int senderID = searchUserByName(sender);
+            messages.push_back(Message(senderID, sender, recipient, text));
         }
     }
     return messages;
 }
 
-bool Database::markMessagesAsDelivered(int userId) {
+bool Database::markMessagesAsDelivered(int userId) { //пометить сообщения как доставленные
     QSqlQuery q;
     q.prepare("UPDATE messages SET delivered = 1 WHERE recipient = :id AND delivered = 0");
     q.bindValue(":id", userId);
     return q.exec();
-}
+}*/
 
-vector<Message> Database::getRecentMessages(int limit) const {
-    vector<Message> messages;
+std::vector<Message> Database::getRecentMessages(int limit, int userId) const {
+    std::vector<Message> messages;
     QSqlQuery q;
-    q.prepare("SELECT sender, recipient, text, timestamp FROM messages ORDER BY timestamp DESC LIMIT :limit");
+
+    q.prepare(R"(
+        SELECT sender, recipient, text, timestamp
+        FROM messages
+        WHERE
+            recipient IS NULL OR
+            recipient = :userId OR
+            sender = (SELECT username FROM users WHERE id = :userId)
+        ORDER BY timestamp DESC
+        LIMIT :limit
+    )");
+
+    q.bindValue(":userId", userId);
     q.bindValue(":limit", limit);
 
     if (q.exec()) {
         while (q.next()) {
-            string sender = q.value(0).toString().toStdString();
+            std::string sender = q.value(0).toString().toStdString();
             int recipient = q.value(1).isNull() ? -1 : q.value(1).toInt();
-            string text = q.value(2).toString().toStdString();
+            std::string text = q.value(2).toString().toStdString();
             QDateTime timestamp = q.value(3).toDateTime();
-            messages.emplace_back(sender, recipient, text, timestamp);
+            int senderID = searchUserByName(sender);
+            messages.emplace_back(senderID, sender, recipient, text, timestamp);
         }
     }
-    std::reverse(messages.begin(), messages.end()); // чтобы сначала были старые
+
+    std::reverse(messages.begin(), messages.end()); // старые сверху
     return messages;
 }
 
-bool Database::isUserAdmin(const std::string& username) const {
+bool Database::isUserAdmin(const std::string& username) const { //проверка статуса админа по имени
     QSqlQuery q;
     q.prepare("SELECT isadmin FROM users WHERE username = :u");
     q.bindValue(":u", QString::fromStdString(username));

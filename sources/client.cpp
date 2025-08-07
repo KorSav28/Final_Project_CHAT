@@ -1,5 +1,7 @@
 #include "client.h"
 #include <QDebug>
+#include <QMessageBox>
+#include <QApplication>
 
 client::client(QObject* parent)
     : QObject(parent),
@@ -17,7 +19,7 @@ client::~client()
     disconnectFromServer();
 }
 
-void client::connectToServer(const QString& host, quint16 port)
+void client::connectToServer(const QString& host, quint16 port) //присоединение к серверу (инициирование подключения)
 {
     if (m_socket->state() == QAbstractSocket::ConnectedState) {
         qDebug() << "[client] Already connected.";
@@ -35,14 +37,14 @@ void client::connectToServer(const QString& host, quint16 port)
     });
 }
 
-void client::disconnectFromServer()
+void client::disconnectFromServer() //отсоединение от сервера
 {
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
         m_socket->disconnectFromHost();
     }
 }
 
-void client::sendCommand(const QString& command)
+void client::sendCommand(const QString& command) //отправка команды серверу
 {
     if (m_socket->state() == QAbstractSocket::ConnectedState) {
         m_socket->write(command.toUtf8() + '\n');
@@ -52,44 +54,44 @@ void client::sendCommand(const QString& command)
 
 }
 
-void client::login(const QString& username, const QString& password)
+void client::login(const QString& username, const QString& password) //авторизация
 {
     qDebug() << "[client] login() called with username:" << username;
     sendCommand("LOGIN " + username + " " + password);
 }
 
-void client::registerUser(const QString& username, const QString& password)
+void client::registerUser(const QString& username, const QString& password) //регистрация
 {
     sendCommand("REGISTER " + username + " " + password);
 }
 
-void client::sendMessage(const QString& message)
+void client::sendMessage(const QString& message) //отправка общего сообщения
 {
     sendCommand("MSG " + message);
 }
 
-void client::sendPrivateMessage(const QString& recipient, const QString& message)
+void client::sendPrivateMessage(const QString& recipient, const QString& message) //отправка приватного сообщения
 {
     sendCommand("PMSG " + recipient + " " + message);
 }
 
-void client::requestUserList()
+void client::requestUserList() //получить список пользователей
 {
     sendCommand("USERLIST");
 }
 
-void client::onConnected()
+void client::onConnected() //присоединение к серверу (обработка факта присоединения)
 {
     qDebug() << "Connected to server.";
     emit connected();
 }
 
-void client::onDisconnected()
+void client::onDisconnected() //отсоединение
 {
     qDebug() << "Disconnected from server.";
     emit disconnected();
 }
-void client::requestHistory()
+void client::requestHistory() //запрос истории сообщений
 {
     sendCommand("HISTORY");
 }
@@ -97,10 +99,22 @@ void client::requestHistory()
 void client::onReadyRead()
 {
     while (m_socket->canReadLine()) {
-        QString line = QString::fromUtf8(m_socket->readLine()).trimmed();
+        QString line = QString::fromUtf8(m_socket->readLine()).trimmed(); //читаем строку и удаляем пробелы в начале и конце
        qDebug()<< "Server says:" << line;
 
-        QStringList parts = line.split(' ');
+        if (line == "BAN") {
+            QMessageBox::critical(nullptr, "Banned", "You have been banned by the admin.");
+            QApplication::quit(); // Завершаем приложение
+            return;
+        }
+        if (line == "KICK") {
+            QMessageBox::warning(nullptr, "Disconnected", "You have been disconnected by the admin.");
+            emit kickedbyAdmin(); //сообщаем дальше
+            m_socket->disconnectFromHost(); //отключаем от сервера
+            return;
+        }
+
+        QStringList parts = line.split(' '); //разбиваем строку для определения команды
 
         if (parts[0] == "LOGIN_OK" && parts.size() >= 4) {
             bool ok;
@@ -128,8 +142,8 @@ void client::onReadyRead()
         else if (parts[0] == "PMSG" && parts.size() >= 4) {
             QString from = parts[1];
             QString to = parts[2];
-            QString text = parts.mid(3).join(" ");
-           qDebug() << "[CLIENT] Got PMSG from" << from << "to" << to << ":" << text;
+            QString text = parts.mid(3).join(" "); // текст - все, что после второй позиции
+            qDebug() << "[CLIENT] Got PMSG from" << from << "to" << to << ":" << text;
             emit privateMessageReceived(from, to, text);
         }
         else if (parts[0] == "USERLIST" && parts.size() >= 2) {
@@ -158,10 +172,10 @@ void client::onReadyRead()
     }
 }
 
-void client::onErrorOccurred(QAbstractSocket::SocketError socketError)
+void client::onErrorOccurred(QAbstractSocket::SocketError socketError) //обработка ошибки сетевого сокета
 {
-    Q_UNUSED(socketError);
-    QString err = m_socket->errorString();
+    Q_UNUSED(socketError); //переменная не используется
+    QString err = m_socket->errorString(); //текстовое сообщение об ошибки
     qDebug() << "Socket error:" << err;
     emit errorOccurred(err);
 }

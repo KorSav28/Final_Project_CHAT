@@ -1,0 +1,64 @@
+QWidget {
+    background-color: #f0f0f0;
+    color: #000000;
+    font-family: Segoe UI, sans-serif;
+}
+
+QPushButton {
+    background-color: #e0e0e0;
+    color: #000000;
+    border: 1px solid #a0a0a0;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+/* Поля ввода */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+    padding: 3px;
+}
+QComboBox {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+    padding: 3px;
+}
+
+/* Список */
+QListWidget {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+}
+
+/* Панель вкладок */
+QTabWidget::pane {
+    border: 1px solid #a0a0a0;
+}
+QTabBar::tab {
+    background: #e0e0e0;
+    border: 1px solid #a0a0a0;
+    padding: 5px;
+}
+QTabBar::tab:selected {
+    background: #ffffff;
+}
+
+/* Статусбар */
+QStatusBar {
+    background-color: #e0e0e0;
+    color: #000000;
+}
+
+/* Прогрессбар */
+QProgressBar {
+    border: 1px solid #a0a0a0;
+    background: #ffffff;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background-color: #a0c4ff;
+    width: 10px;
+}
