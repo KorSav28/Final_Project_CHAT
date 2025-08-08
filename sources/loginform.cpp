@@ -39,20 +39,20 @@ void LoginForm::on_buttonBox_accepted()
 
 void LoginForm::on_buttonBox_rejected()
 {
- emit rejected();
+    emit rejected();
 }
 
 
 void LoginForm::on_registrationpushButton_clicked()
 {
- emit registrationRequested();
+    emit registrationRequested();
 }
 
 void LoginForm::onLoginResult(bool success, int userId, const QString& userName, bool isAdmin)
 {
     qDebug() << "LoginForm::onLoginResult success:" << success;
     if (success) {
-            emit accepted(userId, userName, isAdmin);
+        emit accepted(userId, userName, isAdmin);
     } else {
         QMessageBox::critical(this, tr("Login Failed"), tr("Invalid credentials or user is banned."));
     }

@@ -47,10 +47,12 @@ private slots:
 
 private:
     void sendCommand(const QString& command); // отправить строковую команду на сервер
+    void init_command_processing_function(); //помощь в обработке команд
 
     QTcpSocket* m_socket;
     int m_userId = -1;
     QString m_username;
+    std::map<std::string, std::function<bool(const QStringList &)>> command_processing;
 };
 
 #endif // CLIENT_H

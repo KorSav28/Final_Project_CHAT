@@ -18,11 +18,11 @@ public:
     Message(int senderID, std::string writer, int target, std::string text);
     Message(int senderID, std::string writer, int target, std::string text, QDateTime timestamp);
 
-  bool searchByTarget(int) const;
-  std::string getSender() const;
-  int getSenderId() const;
-  int getDest() const;
-  int getID() const;
-  std::string getText() const;
-  QDateTime getTimestamp() const;
+    bool searchByTarget(int) const;
+    std::string getSender() const;
+    int getSenderId() const;
+    int getDest() const;
+    int getID() const;
+    std::string getText() const;
+    QDateTime getTimestamp() const;
 };

@@ -37,16 +37,18 @@ private:
     QVector<QTcpSocket*> m_clients;
     std::unordered_map<QTcpSocket*, int> m_clientIds;
     QHash<QString, bool> m_bannedIps;
+    std::map<std::string, std::function<void(QTcpSocket*, const QStringList&)>> commandHandlers;
 
     QMutex m_clientsMutex;
 
+    void initCommandHandlers(); //помощь в обработке команд
     void processCommand(QTcpSocket* client, const QString& msg); //обработка команд
     void sendMessage(QTcpSocket* client, const QString& msg); //отправляет сообщение
     void broadcast(const QString& msg); //рассылает сообщение
     void sendPrivateMessage(const QString& targetUsername, const QString& sender, const QString& message); //отправляет првиатное сообщение
 
-     void kickClient(QTcpSocket* client); //отключение
-     void banClient(QTcpSocket* client); //бан
+    void kickClient(QTcpSocket* client); //отключение
+    void banClient(QTcpSocket* client); //бан
 };
 
 #endif // SERVER_H

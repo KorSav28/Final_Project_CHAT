@@ -46,9 +46,6 @@ public:
     bool setUserBanStatus(const string& username, bool banned);
     vector<std::pair<string, bool>> getAllUsersWithBanStatus() const; // получить список пользователей со статусом бан
 
-    /*std::vector<Message> getUndeliveredPrivateMessages(int userId) const; //получить недоставленные сообщения
-    bool markMessagesAsDelivered(int userId); // пометить все сообщения как доставленные*/
-
     std::vector<Message> getRecentMessages(int limit, int userId) const; //получить последние 50 сообщений
 
     bool isUserAdmin(const std::string& username) const; //проверка статуса админа

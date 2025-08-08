@@ -151,13 +151,13 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Final_Project_CHAT/sources/mainwindow.cpp" line="115"/>
+        <location filename="../Final_Project_CHAT/sources/mainwindow.cpp" line="139"/>
         <location filename="../sources/mainwindow.cpp" line="139"/>
         <source>No users</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Final_Project_CHAT/sources/mainwindow.cpp" line="115"/>
+        <location filename="../Final_Project_CHAT/sources/mainwindow.cpp" line="139"/>
         <location filename="../sources/mainwindow.cpp" line="139"/>
         <source>No other users online.</source>
         <translation type="unfinished"></translation>
@@ -183,8 +183,8 @@
         <location filename="../sources/adminpanel.ui" line="14"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="153"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="153"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="159"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="159"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="153"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="153"/>
         <source>Form</source>
         <translation type="unfinished"></translation>
     </message>
@@ -193,8 +193,8 @@
         <location filename="../sources/adminpanel.ui" line="24"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="154"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="154"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="160"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="160"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="154"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="154"/>
         <source>Type:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -207,10 +207,10 @@
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="157"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="155"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="157"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="161"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="163"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="161"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="163"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="155"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="157"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="155"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="157"/>
         <source>Users:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -219,8 +219,8 @@
         <location filename="../sources/adminpanel.ui" line="44"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="156"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="156"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="162"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="162"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="156"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="156"/>
         <source>Refresh</source>
         <translation type="unfinished"></translation>
     </message>
@@ -229,18 +229,18 @@
         <location filename="../sources/adminpanel.ui" line="78"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="158"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="158"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="164"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="164"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="158"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="158"/>
         <source>Ban</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Final_Project_CHAT/sources/adminpanel.ui" line="85"/>
+        <location filename="../Final_Project_CHAT/sources/adminpanel.ui" line="87"/>
         <location filename="../sources/adminpanel.ui" line="87"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="159"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="159"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="165"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="165"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="159"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="159"/>
         <source>Unban</source>
         <translation type="unfinished"></translation>
     </message>
@@ -249,16 +249,9 @@
         <location filename="../sources/adminpanel.ui" line="96"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="160"/>
         <location filename="../build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="160"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="166"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="166"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="160"/>
+        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="160"/>
         <source>Disconnect</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../Final_Project_CHAT/sources/adminpanel.ui" line="103"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Debug/ui_adminpanel.h" line="167"/>
-        <location filename="../Final_Project_CHAT/build/Desktop_Qt_6_9_1_MSVC2022_64bit-Release/ui_adminpanel.h" line="167"/>
-        <source>Reconnect</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

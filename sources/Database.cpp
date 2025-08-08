@@ -1,6 +1,7 @@
 ﻿#include "Database.h"
 #include "Parsing.h"
 #include "sha1.h"
+#include "database_helper.h"
 
 #include <memory>
 #include <iostream>
@@ -27,61 +28,18 @@ bool Database::connect()
     db.setUserName("chatuser");
     db.setPassword("yourpassword");
 
-    if (!db.open()){
+    if (!db.open())
+    {
         qDebug() << "Database connection failed:" << db.lastError().text();
         return false;
     }
 
     QSqlQuery q; //для выполнения запросов
 
-    //создание таблицы пользователей
-    q.exec("CREATE TABLE IF NOT EXISTS users ("
-           "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-           "username TEXT UNIQUE,"
-           "password TEXT, "
-           "is_banned BOOLEAN DEFAULT FALSE, "
-           "isadmin INTEGER DEFAULT 0)");
+    database_helper::createTables(q);
+    database_helper::printUsers(q);
 
-    //создание таблицы сообщений
-    q.exec("CREATE TABLE IF NOT EXISTS messages ("
-           "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-           "sender TEXT, "
-           "recipient INTEGER, "
-           "text TEXT, "
-           "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-           "delivered BOOLEAN DEFAULT FALSE)");
-
-    //вывод всех пользователей в БД
-    QSqlQuery usersQuery("SELECT username FROM users");
-    qDebug() << "Users in database:";
-    while (usersQuery.next()) {
-        qDebug() << usersQuery.value(0).toString();
-    }
-
-    QSqlQuery checkUser;
-    checkUser.prepare("SELECT COUNT(*) FROM users WHERE username = :u");
-    checkUser.bindValue(":u", "admin");
-    if (!checkUser.exec()) {
-        qDebug() << "Failed to check user existence:" << checkUser.lastError().text();
-        return false;
-    }
-    checkUser.next();
-
-    //создание админа
-    if (checkUser.value(0).toInt() == 0) {
-        QSqlQuery insertUser;
-        insertUser.prepare("INSERT INTO users (username, password, isadmin) VALUES (:u, :p, 1)");
-        insertUser.bindValue(":u", "admin");
-        insertUser.bindValue(":p", QString::fromStdString(sha1_to_hex_string("admin123")));
-        if (!insertUser.exec()) {
-            qDebug() << "Failed to insert test user:" << insertUser.lastError().text();
-            return false;
-        } else {
-            qDebug() << "Inserted test user 'admin'";
-        }
-    }
-
-    return true;
+    return database_helper::ensureAdminExists(q, "admin", QString::fromStdString(sha1_to_hex_string("admin123")));
 }
 
 int Database::addUser(const string& username, const string& password) //добавление нового пользователя
@@ -310,31 +268,6 @@ void Database::debugPrintAllUsers() const //напечатать всех пол
     }
     qDebug() << "== END DEBUG ==";
 }
-
-/*std::vector<Message> Database::getUndeliveredPrivateMessages(int userId) const { //получить список доставленных приватных сообщений
-    std::vector<Message> messages;
-    QSqlQuery q;
-    q.prepare("SELECT sender, recipient, text FROM messages WHERE recipient = :id AND delivered = FALSE ORDER BY timestamp");
-    q.bindValue(":id", userId);
-
-    if (q.exec()) {
-        while (q.next()) {
-            std::string sender = q.value(0).toString().toStdString();
-            int recipient = q.value(1).toInt();
-            std::string text = q.value(2).toString().toStdString();
-            int senderID = searchUserByName(sender);
-            messages.push_back(Message(senderID, sender, recipient, text));
-        }
-    }
-    return messages;
-}
-
-bool Database::markMessagesAsDelivered(int userId) { //пометить сообщения как доставленные
-    QSqlQuery q;
-    q.prepare("UPDATE messages SET delivered = 1 WHERE recipient = :id AND delivered = 0");
-    q.bindValue(":id", userId);
-    return q.exec();
-}*/
 
 std::vector<Message> Database::getRecentMessages(int limit, int userId) const {
     std::vector<Message> messages;

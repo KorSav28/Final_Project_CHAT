@@ -12,6 +12,8 @@ client::client(QObject* parent)
     connect(m_socket, &QTcpSocket::readyRead, this, &client::onReadyRead);
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
             this, &client::onErrorOccurred);
+
+    init_command_processing_function();
 }
 
 client::~client()
@@ -52,6 +54,93 @@ void client::sendCommand(const QString& command) //отправка команд
         qDebug() << "[client] Cannot send command, socket not connected.";
     }
 
+}
+
+void client::init_command_processing_function()
+{
+    command_processing.emplace("LOGIN_OK", [this](const QStringList &parts){
+        if(parts.size() < 4)
+            return false;
+        bool ok;
+        int userId = parts[1].toInt(&ok);
+        QString username = parts[2];
+        bool isAdmin = (parts[3] == "1");
+        emit loginResult(true, userId, username, isAdmin);
+        return true;
+    });
+
+    command_processing.emplace("LOGIN_FAIL", [this](const QStringList &parts){
+        emit loginResult(false, -1, "", false);
+        return true;
+    });
+
+    command_processing.emplace("REGISTER_OK", [this](const QStringList &parts){
+        if(parts.size() < 3)
+            return false;
+        bool ok;
+        int userId = parts[1].toInt(&ok);
+        if (ok) emit registerResult(true, userId, parts[2]);
+        return true;
+    });
+
+    command_processing.emplace("REGISTER_FAIL", [this](const QStringList &parts){
+        emit registerResult(false, -1, "");
+        return true;
+    });
+
+    command_processing.emplace("MSG", [this](const QStringList &parts){
+        if(parts.size() < 3)
+            return false;
+        QString from = parts[1];
+        QString text = parts.mid(2).join(" ");
+        emit messageReceived(from, text);
+        return true;
+    });
+
+    command_processing.emplace("PMSG", [this](const QStringList &parts){
+        if(parts.size() < 4)
+            return false;
+        QString from = parts[1];
+        QString to = parts[2];
+        QString text = parts.mid(3).join(" "); // текст - все, что после второй позиции
+        qDebug() << "[CLIENT] Got PMSG from" << from << "to" << to << ":" << text;
+        emit privateMessageReceived(from, to, text);
+        return true;
+    });
+
+    command_processing.emplace("USERLIST", [this](const QStringList &parts){
+        if(parts.size() < 2)
+            return false;
+        QStringList users = parts.mid(1);
+        emit userListReceived(users);
+        return true;
+    });
+
+    command_processing.emplace("HISTORY_MSG", [this](const QStringList &parts){
+        if(parts.size() < 4)
+            return false;
+        QString sender = parts[1];
+        QString time = parts[2];
+        QString text = parts.mid(3).join(" ");
+        emit messageReceived(sender, "[" + time + "] " + text);
+        return true;
+    });
+
+    command_processing.emplace("HISTORY_PMSG", [this](const QStringList &parts){
+        if(parts.size() < 5)
+            return false;
+        QString sender = parts[1];
+        QString receiver = parts[2];
+        QString time = parts[3];
+        QString text = parts.mid(4).join(" ");
+        emit privateMessageReceived(sender, receiver, "[" + time + "] " + text);
+        return true;
+    });
+
+    command_processing.emplace("SERVER", [this](const QStringList &parts){
+        emit messageReceived("SERVER", parts.mid(1).join(" "));
+        return true;
+    });
 }
 
 void client::login(const QString& username, const QString& password) //авторизация
@@ -116,57 +205,12 @@ void client::onReadyRead()
 
         QStringList parts = line.split(' '); //разбиваем строку для определения команды
 
-        if (parts[0] == "LOGIN_OK" && parts.size() >= 4) {
-            bool ok;
-            int userId = parts[1].toInt(&ok);
-            QString username = parts[2];
-            bool isAdmin = (parts[3] == "1");
-            emit loginResult(true, userId, username, isAdmin);
-        }
-        else if (parts[0] == "LOGIN_FAIL") {
-            emit loginResult(false, -1, "", false);
-        }
-        else if (parts[0] == "REGISTER_OK" && parts.size() >= 3) {
-            bool ok;
-            int userId = parts[1].toInt(&ok);
-            if (ok) emit registerResult(true, userId, parts[2]);
-        }
-        else if (parts[0] == "REGISTER_FAIL") {
-            emit registerResult(false, -1, "");
-        }
-        else if (parts[0] == "MSG" && parts.size() >= 3) {
-            QString from = parts[1];
-            QString text = parts.mid(2).join(" ");
-            emit messageReceived(from, text);
-        }
-        else if (parts[0] == "PMSG" && parts.size() >= 4) {
-            QString from = parts[1];
-            QString to = parts[2];
-            QString text = parts.mid(3).join(" "); // текст - все, что после второй позиции
-            qDebug() << "[CLIENT] Got PMSG from" << from << "to" << to << ":" << text;
-            emit privateMessageReceived(from, to, text);
-        }
-        else if (parts[0] == "USERLIST" && parts.size() >= 2) {
-            QStringList users = parts.mid(1);
-            emit userListReceived(users);
-        }
-        else if (parts[0] == "HISTORY_MSG" && parts.size() >= 4) {
-            QString sender = parts[1];
-            QString time = parts[2];
-            QString text = parts.mid(3).join(" ");
-            emit messageReceived(sender, "[" + time + "] " + text);
-        }
-        else if (parts[0] == "HISTORY_PMSG" && parts.size() >= 5) {
-            QString sender = parts[1];
-            QString receiver = parts[2];
-            QString time = parts[3];
-            QString text = parts.mid(4).join(" ");
-            emit privateMessageReceived(sender, receiver, "[" + time + "] " + text);
-        }
-        else if (parts[0] == "SERVER") {
-            emit messageReceived("SERVER", parts.mid(1).join(" "));
-        }
-        else {
+        auto it = command_processing.find(parts[0].toStdString());
+        if (it != command_processing.end()) {
+            if (!it->second(parts)) {
+                qDebug() << "Invalid arguments for command:" << parts[0];
+            }
+        } else {
             emit messageReceived("SERVER", line);
         }
     }

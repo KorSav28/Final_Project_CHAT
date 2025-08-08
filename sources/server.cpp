@@ -15,6 +15,7 @@ bool Server::startServer(quint16 port) //запуск сервера
     }
     connect(this, &QTcpServer::newConnection, this, &Server::onNewConnection);
     qDebug()<< "Server started on port" << port;
+    initCommandHandlers();
     return true;
 }
 
@@ -82,14 +83,13 @@ void Server::onClientDisconnect() //обработка отключения кл
     qDebug()<< "Client disconnected";
 }
 
-void Server::processCommand(QTcpSocket* client, const QString& msg) //обработка команд
+void Server::initCommandHandlers()
 {
-    QStringList parts = msg.split(' ', Qt::SkipEmptyParts);
-    if (parts.isEmpty()) return;
-
-    QString cmd = parts[0].toUpper();
-
-    if (cmd == "REGISTER" && parts.size() >= 3) {
+    commandHandlers.emplace("REGISTER", [this](QTcpSocket* client, const QStringList& parts) {
+        if (parts.size() < 3) {
+            sendMessage(client, "REGISTER_FAIL");
+            return;
+        }
         QString username = parts[1];
         QString password = parts[2];
         int id = m_database->addUser(username.toStdString(), password.toStdString());
@@ -98,8 +98,13 @@ void Server::processCommand(QTcpSocket* client, const QString& msg) //обраб
         } else {
             sendMessage(client, "REGISTER_FAIL");
         }
+    });
 
-    } else if (cmd == "LOGIN" && parts.size() >= 3) {
+    commandHandlers.emplace("LOGIN", [this](QTcpSocket* client, const QStringList& parts) {
+        if (parts.size() < 3) {
+            sendMessage(client, "LOGIN_FAIL");
+            return;
+        }
         QString username = parts[1];
         QString password = parts[2];
         int id = m_database->checkPassword(username.toStdString(), password.toStdString());
@@ -117,66 +122,62 @@ void Server::processCommand(QTcpSocket* client, const QString& msg) //обраб
             }
             bool isAdmin = m_database->isUserAdmin(username.toStdString());
             QString adminFlag = isAdmin ? "1" : "0";
-
             sendMessage(client, "LOGIN_OK " + QString::number(id) + " " + username + " " + adminFlag);
 
             // отправка прошлых сообщений в общий чат
-            std::vector<std::string> publicMessages = m_database->getChatMessages();
-            for (const std::string& msg : publicMessages) {
+            for (const std::string& msg : m_database->getChatMessages()) {
                 sendMessage(client, QString::fromStdString(msg));
             }
-
             // отправка прошлых сообщений в приватный чат
-            std::vector<Message> privateMessages = m_database->getPrivateMessage(id);
-            for (const Message& msg : privateMessages) {
+            for (const Message& msg : m_database->getPrivateMessage(id)) {
                 QString sender = QString::fromStdString(msg.getSender());
                 QString receiver = QString::fromStdString(m_database->getUserName(msg.getDest()));
                 QString text = QString::fromStdString(msg.getText());
                 sendMessage(client, "PMSG " + sender + " " + receiver + " " + text);
             }
-
-            //m_database->markMessagesAsDelivered(id);
         } else {
             sendMessage(client, "LOGIN_FAIL");
         }
+    });
 
-    } else if (cmd == "MSG" && parts.size() >= 2) { //общий чат
-        if (m_clientIds.find(client) == m_clientIds.end()) {
+    commandHandlers.emplace("MSG", [this](QTcpSocket* client, const QStringList& parts) {
+        if (parts.size() < 2 || m_clientIds.find(client) == m_clientIds.end()) {
             sendMessage(client, "ERROR Not logged in");
             return;
         }
-        QString message = msg.section(' ', 1);
+        QString message = parts.mid(1).join(" ");
         QString sender = QString::fromStdString(m_database->getUserName(m_clientIds[client]));
         m_database->addChatMessage(sender.toStdString(), message.toStdString());
         broadcast("<" + sender + ">: " + message);
+    });
 
-    } else if (cmd == "PMSG" && parts.size() >= 3) { //приватный чат
-        if (m_clientIds.find(client) == m_clientIds.end()) {
+    commandHandlers.emplace("PMSG", [this](QTcpSocket* client, const QStringList& parts) {
+        if (parts.size() < 3 || m_clientIds.find(client) == m_clientIds.end()) {
             sendMessage(client, "ERROR Not logged in");
             return;
         }
         QString target = parts[1];
-        QString message = msg.section(' ', 2);
+        QString message = parts.mid(2).join(" ");
         QString sender = QString::fromStdString(m_database->getUserName(m_clientIds[client]));
 
         if (m_database->addPrivateMessage(sender.toStdString(), target.toStdString(), message.toStdString())) {
-            QString fullMsg = "PMSG " + sender + " " + target + " " + message;
-
-            sendMessage(client, fullMsg); //отправитель видит сообщение
-            sendPrivateMessage(target, sender, message); // получатель видит сообщение
+            sendMessage(client, "PMSG " + sender + " " + target + " " + message); //отправитель видит сообщение
+            sendPrivateMessage(target, sender, message); //получатель видит сообщение
         } else {
             sendMessage(client, "PMSG_FAILED");
         }
-    } else if (cmd == "USERLIST") {
-            if (m_clientIds.find(client) == m_clientIds.end()) {
-                sendMessage(client, "ERROR Not logged in");
-                return;
-            }
-            QStringList users = m_database->getAllUsernames();
-            QString response = "USERLIST " + users.join(" ");
-            sendMessage(client, response);
+    });
+
+    commandHandlers.emplace("USERLIST", [this](QTcpSocket* client, const QStringList&) {
+        if (m_clientIds.find(client) == m_clientIds.end()) {
+            sendMessage(client, "ERROR Not logged in");
+            return;
         }
-    else if (cmd == "HISTORY") {
+        QStringList users = m_database->getAllUsernames();
+        sendMessage(client, "USERLIST " + users.join(" "));
+    });
+
+    commandHandlers.emplace("HISTORY", [this](QTcpSocket* client, const QStringList&) {
         int userId = -1;
         {
             QMutexLocker locker(&m_clientsMutex);
@@ -184,38 +185,48 @@ void Server::processCommand(QTcpSocket* client, const QString& msg) //обраб
                 userId = m_clientIds[client];
             }
         }
-
         if (userId == -1) {
             sendMessage(client, "ERROR Not logged in");
             return;
         }
-            auto messages = m_database->getRecentMessages(50, userId); // Получаем последние 50 сообщений
+
+        auto messages = m_database->getRecentMessages(50, userId);
         for (const Message& msg : messages) {
-            if (msg.getDest() == -1) { // Сообщение в общий чат
+            if (msg.getDest() == -1) { // общий чат
                 QString text = QString("HISTORY_MSG %1 %2 %3\n")
                                    .arg(QString::fromStdString(msg.getSender()))
                                    .arg(msg.getTimestamp().toString(Qt::ISODate))
                                    .arg(QString::fromStdString(msg.getText()));
-
                 client->write(text.toUtf8());
-            } else { //приватыне сообщения
+            } else { // приватные
                 if (msg.getDest() == userId || msg.getSenderId() == userId) {
-                QString recipientName = QString::fromStdString(m_database->getUserName(msg.getDest()));
-                QString text = QString("HISTORY_PMSG %1 %2 %3 %4\n")
-                                   .arg(QString::fromStdString(msg.getSender()))
-                                   .arg(recipientName)
-                                   .arg(msg.getTimestamp().toString(Qt::ISODate))
-                                   .arg(QString::fromStdString(msg.getText()));
-
-                client->write(text.toUtf8());
+                    QString recipientName = QString::fromStdString(m_database->getUserName(msg.getDest()));
+                    QString text = QString("HISTORY_PMSG %1 %2 %3 %4\n")
+                                       .arg(QString::fromStdString(msg.getSender()))
+                                       .arg(recipientName)
+                                       .arg(msg.getTimestamp().toString(Qt::ISODate))
+                                       .arg(QString::fromStdString(msg.getText()));
+                    client->write(text.toUtf8());
                 }
             }
         }
-    }
-    else {
+    });
+}
+
+void Server::processCommand(QTcpSocket* client, const QString& msg) //обработка команд
+{
+    QStringList parts = msg.split(' ', Qt::SkipEmptyParts);
+    if (parts.isEmpty()) return;
+
+    QString cmd = parts[0].toUpper();
+
+    auto it = commandHandlers.find(cmd.toStdString());
+
+    if (it != commandHandlers.end()) {
+        it->second(client, parts);
+    } else {
         sendMessage(client, "UNKNOWN_COMMAND");
     }
-    // Добавить обработку других команд
 }
 
 QStringList Database::getAllUsernames() { //получить список всех имен

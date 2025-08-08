@@ -246,7 +246,7 @@ void MainWindow::handleKickedByAdmin() //отключение админом
 
     QObject::connect(start, &StartScreen::adminLoggedIn, [=]() {
         qDebug() << "Admin re-logged in";
-        this->close(); // Закрываем старое окно
+        this->close();
         adminpanel* panel = new adminpanel(m_db, m_server);
         panel->setAttribute(Qt::WA_DeleteOnClose);
         panel->show();
