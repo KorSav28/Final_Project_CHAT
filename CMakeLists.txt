@@ -34,7 +34,6 @@ set (CMAKE_AUTOUIC ON)
 qt6_wrap_ui(QUI ${UI_FILES})
 qt6_add_resources (QRC ${RC_FILES})
 
-# Копируем готовые .qm файлы в папку билда рядом с exe
 file(GLOB QM_FILES "${CMAKE_CURRENT_SOURCE_DIR}/translations/*.qm")
 
 foreach(qm_file ${QM_FILES})
@@ -46,49 +45,18 @@ foreach(qm_file ${QM_FILES})
     )
 endforeach()
 
-#if(NOT Qt6_LUPDATE_EXECUTABLE)
-#    if(DEFINED ENV{LUPDATE_PATH})
-#        set(Qt6_LUPDATE_EXECUTABLE "$ENV{LUPDATE_PATH}" CACHE FILEPATH "Path to lupdate tool")
-#    else()
-#        find_program(Qt6_LUPDATE_EXECUTABLE NAMES lupdate REQUIRED)
-#    endif()
-#endif()
-
-#здесь происходит создание файлов переводов и установка зависимостей,
-#чтобы эти файлы генерировались во время билда проекта
-#set(TS_FILES
-# ${CMAKE_CURRENT_SOURCE_DIR}/translations/my_ru.ts)
-#file(GLOB_RECURSE TS_SOURCES "*.cpp" "*.h" ".ui")
-#add_custom_target(translations)
-
-#по сути, при билде для каждого .ts файла вызывается
-#утилита lupdate.exe
-#foreach(_ts_file ${TS_FILES})
-# get_filename_component(_ts_name ${_ts_file} NAME_WE)
-# add_custom_command(
-#  OUTPUT "${_ts_file}"
-#   DEPENDS ${TS_SOURCES}
-
-#вот тут как раз описывается путь к вызываемой утилите lupdate.exe
-#и ее входные аргументы:
-#   COMMAND ${Qt6_LUPDATE_EXECUTABLE} -recursive
-#   ${CMAKE_CURRENT_SOURCE_DIR} -ts ${_ts_file}
-#  )
-# add_custom_target(translate_${_ts_name} DEPENDS ${_ts_file})
-# add_dependencies(translations translate_${_ts_name})
-#endforeach()
-
-#подключаем файлы трансляции(переводов)
-#qt6_add_translation(QM_FILES ${TS_FILES})
-
 add_executable(Chat ${SRC_FILES} ${HEADERS_FILES} ${UI_FILES} ${RC_FILES})
+
+target_include_directories(Chat
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/sources
+)
 
 target_link_libraries (Chat
 PUBLIC
 ${CHAT_LIBRARIES}
 )
 
-# Копирование QSS-файлов в директорию сборки
 file(GLOB STYLE_FILES "${CMAKE_SOURCE_DIR}/styles/*.qss")
 
 foreach(style_file ${STYLE_FILES})
